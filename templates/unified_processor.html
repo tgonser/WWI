@@ -511,9 +511,6 @@ body {
                     <button class="tab-btn" onclick="switchTab('originals')">
                         📂 Original Files
                     </button>
-                    <button class="tab-btn" onclick="switchTab('subsets')">
-                        📊 Date Ranges
-                    </button>
                 </div>
                 
                 <!-- Upload Tab -->
@@ -590,20 +587,6 @@ body {
 
             <!-- Status Messages -->
             <div id="status-message" class="status-message"></div>
-
-            <!-- ADD THE NEW SECTION HERE - RIGHT AFTER STATUS MESSAGES -->
-            
-            <!-- Your Processed Files Section -->
-            <div class="step-section" style="display: block; margin-bottom: 30px;">
-                <h2 class="step-title">Your Processed Files</h2>
-                
-                <div id="existingFiles">
-                    <div style="text-align: center;">
-                        <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #2196F3; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <p style="margin-top: 10px;">Loading your processed files...</p>
-                    </div>
-                </div>
-            </div>
 
             <!-- Step 1: Parse Raw Google JSON -->
             <div class="step-section active" id="section-1">
@@ -692,14 +675,29 @@ body {
             <div class="step-section" id="section-2">
                 <h2 class="step-title">Step 2: Geocode and Analyze</h2>
 
-                <div class="info-box">
-                    <strong>API Keys Required:</strong> You need a Geoapify API key for geocoding. 
-                    Google Maps API key is optional but recommended for better results.
+                <!-- Show API keys section only if not already configured -->
+                <div id="apiKeysSection" {% if config.get('geoapify_key') %}style="display: none;"{% endif %}>
+                    <div class="info-box">
+                        <strong>API Keys Required:</strong> You need API keys for geocoding.
+                        <a href="#" onclick="alert('Get Geoapify key from geoapify.com and Google Maps key from console.cloud.google.com')">Learn how to get API keys</a>
+                    </div>
+                </div>
+
+                <!-- Show API Keys button if they are already configured -->
+                {% if config.get('geoapify_key') %}
+                <div style="text-align: center; margin: 20px 0;">
+                    <button type="button" onclick="toggleApiKeys()" class="btn btn-secondary">
+                        API Keys
+                    </button>
+                    
+                    <!-- ISSUE #11: Simplified cache display -->
                     {% if cache_stats.entries > 0 %}
-                    <br><br><strong>Geocoding Cache:</strong> {{ cache_stats.entries }} cached locations 
-                    ({{ cache_stats.file_size_kb }} KB) will reduce API calls.
+                    <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 15px; color: #856404;">
+                        Geocoding Cache has {{ cache_stats.entries }} locations
+                    </div>
                     {% endif %}
                 </div>
+                {% endif %}
 
                 <form id="analyze-form">
                     <div class="form-row">
@@ -754,7 +752,7 @@ body {
                 </button>
                 <button type="button" class="btn btn-secondary" onclick="showAllSavedData()" style="margin-left: 15px;">
                     📁 Manage Saved Files
-                 </button>   
+                </button>   
                 {% if cache_stats.entries > 0 %}
                 <button type="button" class="btn btn-secondary" onclick="showCacheManager()" style="margin-left: 15px;">
                     Manage Cache ({{ cache_stats.entries }} entries)
@@ -1370,7 +1368,34 @@ function analyzeExistingFile(filename) {
                 closeCacheManager();
             }
         }
-    
+        function showServerFiles() {
+            fetch('/list_processed_files')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.files.length === 0) {
+                        alert('No processed files yet. Upload and parse a location file to get started.');
+                    } else {
+                        // Create a better display than just alert
+                        let filesList = 'Your processed files:\n\n';
+                        data.files.forEach(file => {
+                            filesList += `• ${file.filename}\n`;
+                            filesList += `  Date Range: ${file.date_range || 'Unknown'}\n`;
+                            filesList += `  Size: ${file.size_mb} MB\n`;
+                            filesList += `  Modified: ${file.modified}\n\n`;
+                        });
+                        
+                        // Show in a scrollable alert
+                        if (filesList.length > 1000) {
+                            filesList = filesList.substring(0, 1000) + '\n... (truncated)';
+                        }
+                        alert(filesList);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading files:', error);
+                    alert('Error loading processed files. Please try again.');
+                });
+        }
     
     </script>
     <!-- Storage Manager Scripts -->
@@ -1378,33 +1403,7 @@ function analyzeExistingFile(filename) {
     <script src="{{ url_for('static', filename='js/storage-integration.js') }}"></script>
     
     <!-- Check for saved data after storage manager loads -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Wait for storage manager to be initialized by storage-integration.js
-        setTimeout(async () => {
-            if (window.storageManager && window.storageManager.db) {
-                try {
-                    const sources = await window.storageManager.getAvailableDataSources();
-                    console.log('Found saved data sources:', sources);
-                    
-                    if (sources.originals.length > 0 || sources.subsets.length > 0) {
-                        // Show the quick access panel if we have saved data
-                        document.getElementById('quickAccessPanel').style.display = 'block';
-                        
-                        // Refresh the lists if the function exists
-                        if (typeof refreshDataSourcesList === 'function') {
-                            await refreshDataSourcesList();
-                        }
-                    }
-                } catch (e) {
-                    console.log('No saved data yet, this is normal for first use');
-                }
-            } else {
-                console.log('Storage manager not ready yet');
-            }
-        }, 1000); // Wait 1 second for storage-integration.js to initialize
-    });
-    </script>
+
    
 </body>
 </html>

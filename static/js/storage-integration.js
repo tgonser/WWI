@@ -465,49 +465,6 @@ async function parseFromMaster(masterId) {
     }
 }
 
-// Add this function to storage-integration.js
-async function parseFromMaster(masterId) {
-    try {
-        // Load the master file
-        const master = await storageManager.loadOriginal(masterId);
-        if (!master) return;
-        
-        // Close the modal
-        closeDataManager();
-        
-        // Load it into the parse form
-        const blob = new Blob([JSON.stringify(master.data)], { type: 'application/json' });
-        const file = new File([blob], master.metadata.filename, { type: 'application/json' });
-        
-        // Set the file in the input
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        const fileInput = document.getElementById('raw-file');
-        if (fileInput) {
-            fileInput.files = dataTransfer.files;
-            
-            // Update file info display
-            const fileInfo = document.getElementById('file-info');
-            if (fileInfo) {
-                fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
-            }
-            
-            // Store filename for later
-            parsedFileName = file.name;
-            
-            // Move to parsing step
-            if (typeof moveToStep === 'function') {
-                moveToStep(1);
-            }
-            
-            showNotification('Master file loaded. Configure parsing settings and click Parse.');
-        }
-    } catch (error) {
-        console.error('Error loading master for parsing:', error);
-        showNotification('Error loading master file', 'error');
-    }
-}
-
 async function processSelectedParsedFile() {
     const checkboxes = document.querySelectorAll('.parsed-file-checkbox:checked');
     if (checkboxes.length !== 1) {
@@ -915,24 +872,140 @@ async function updateStorageInfo() {
 
 // FIX 2: Modified to default to files tab
 async function showAllSavedData() {
-    // Check if storage manager is initialized
-    if (!window.storageManager || !window.storageManager.db) {
-        console.error('Storage manager not initialized yet');
-        showNotification('Storage system is initializing. Please try again in a moment.', 'error');
-        return;
-    }
-    
     // Show the modal
     const modal = document.getElementById('dataManagerModal');
     if (modal) {
         modal.style.display = 'block';
         
-        // FIX 2: Default to files tab instead of upload
+        // Default to files tab instead of upload
         switchTab('originals');
         
-        // Refresh the lists
-        await refreshDataSourcesList();
+        // Load secure server data instead of browser storage
+        await loadSecureServerData();
     }
+}
+
+async function loadSecureServerData() {
+    try {
+        const response = await fetch('/list_all_user_files');
+        const data = await response.json();
+        
+        displayAllUserFiles(data);
+        
+    } catch (error) {
+        console.error('Error loading files:', error);
+        document.getElementById('originalFilesList').innerHTML = 
+            '<p style="text-align: center; color: #999;">Error loading files</p>';
+    }
+}
+
+function displaySecureFilesList(files) {
+    const listDiv = document.getElementById('originalFilesList');
+    if (!listDiv) return;
+    
+    if (!files || files.length === 0) {
+        listDiv.innerHTML = `
+            <div style="text-align: center; color: #666; padding: 40px;">
+                <h4>No processed files yet</h4>
+                <p>Upload and parse a Google location file to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create the nice table interface like the original
+    let html = `
+        <div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+            <h4 style="margin: 0; color: #000;">Your Processed Location Files</h4>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Name</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Date Range</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Size</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Modified</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    files.forEach(file => {
+        html += `
+            <tr style="border-bottom: 1px solid #dee2e6;">
+                <td style="padding: 12px;">${file.filename}</td>
+                <td style="padding: 12px; color: #666;">${file.date_range || 'Unknown'}</td>
+                <td style="padding: 12px;">${file.size_mb} MB</td>
+                <td style="padding: 12px; font-size: 0.9em; color: #666;">${file.modified}</td>
+                <td style="padding: 12px;">
+                    <button onclick="analyzeExistingFile('${file.filename}')" 
+                            style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Analyze
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    listDiv.innerHTML = html;
+}
+
+function displayAllUserFiles(data) {
+    const listDiv = document.getElementById('originalFilesList');
+    if (!listDiv) return;
+    
+    const totalFiles = data.master_files.length + data.parsed_files.length;
+    
+    if (totalFiles === 0) {
+        listDiv.innerHTML = `
+            <div style="text-align: center; color: #666; padding: 40px;">
+                <h4>No files yet</h4>
+                <p>Upload a Google location file to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `<div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                    <h4 style="margin: 0; color: #000;">Your Location Files</h4>
+                </div>`;
+    
+    // Show master files first
+    if (data.master_files.length > 0) {
+        html += `<h5 style="color: #dc3545; margin: 20px 0 10px 0;">Master Files (Original Uploads)</h5>`;
+        data.master_files.forEach(file => {
+            html += `
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${file.filename}</strong> (${file.size_mb} MB)<br>
+                    <small>Modified: ${file.modified}</small><br>
+                    <button onclick="parseFromMaster('${file.filename}')" style="margin-top: 10px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 4px;">
+                        Parse New Range
+                    </button>
+                </div>
+            `;
+        });
+    }
+    
+    // Show parsed files
+    if (data.parsed_files.length > 0) {
+        html += `<h5 style="color: #28a745; margin: 20px 0 10px 0;">Parsed Files (Ready for Analysis)</h5>`;
+        data.parsed_files.forEach(file => {
+            html += `
+                <div style="background: #e8f5e8; border: 1px solid #c3e6c3; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${file.filename}</strong> (${file.size_mb} MB)<br>
+                    <small>Modified: ${file.modified}</small><br>
+                    <button onclick="analyzeExistingFile('${file.filename}')" style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px;">
+                        Analyze
+                    </button>
+                </div>
+            `;
+        });
+    }
+    
+    listDiv.innerHTML = html;
 }
 
 function closeDataManager() {

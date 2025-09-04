@@ -272,9 +272,30 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
+       <div class="header"> 
             <h1>Analysis Complete!</h1>
             <p>Your location data has been successfully processed and analyzed</p>
+            
+            <!-- ADD THIS NEW ANALYSIS SUMMARY SECTION -->
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-top: 20px; font-size: 0.9em;">
+                {% if progress_data.parse_dates_used %}
+                <strong>Analyzed date range:</strong> 
+                {{ progress_data.parse_dates_used.from }} to {{ progress_data.parse_dates_used.to }}<br>
+                {% endif %}
+                
+                {% if progress_data.analysis_stats and progress_data.analysis_stats.filterSettings %}
+                {% set filters = progress_data.analysis_stats.filterSettings %}
+                <strong>Resolution for location points was:</strong>
+                {{ filters.distanceThreshold }}M distance, 
+                {{ filters.probabilityThreshold }} probability, and 
+                {{ filters.durationThreshold }} seconds duration.
+                {% elif progress_data.parse_stats %}
+                <strong>Resolution for location points was:</strong>
+                {{ progress_data.parse_stats.distance_threshold or 2000 }}M distance, 
+                {{ progress_data.parse_stats.probability_threshold or 0.5 }} probability, and 
+                {{ progress_data.parse_stats.duration_threshold or 600 }} seconds duration.
+                {% endif %}
+            </div>
         </div>
         
         <div class="content">

@@ -26,6 +26,17 @@ except ImportError as e:
     print("Make sure to copy modern_analyzer_bridge.py, geo_utils.py, and csv_exporter.py from your LAweb app")
     ANALYZER_AVAILABLE = False
 
+from functools import wraps
+
+def require_login(f):
+    """Decorator to require user login for protected routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = secrets.token_hex(32)  # Generate a secure secret key
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -218,6 +229,46 @@ def get_cache_stats_for_user(username):
         pass
     
     return {'entries': 0, 'file_size_kb': 0}
+
+def get_user_files_only(username):
+    """Get files only for the specified user - CRITICAL FIX"""
+    user_uploads_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    user_processed_path = os.path.join(app.config['PROCESSED_FOLDER'], username)
+    
+    files_info = {'master_files': [], 'parsed_files': []}
+    
+    # Ensure user directories exist
+    os.makedirs(user_uploads_path, exist_ok=True)
+    os.makedirs(user_processed_path, exist_ok=True)
+    
+    # Get master files from user's upload directory ONLY
+    if os.path.exists(user_uploads_path):
+        for filename in os.listdir(user_uploads_path):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_uploads_path, filename)
+                file_stat = os.stat(file_path)
+                files_info['master_files'].append({
+                    'filename': filename,
+                    'path': file_path,
+                    'size': file_stat.st_size,
+                    'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+    
+    # Get parsed files from user's processed directory ONLY
+    if os.path.exists(user_processed_path):
+        for filename in os.listdir(user_processed_path):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_processed_path, filename)
+                file_stat = os.stat(file_path)
+                files_info['parsed_files'].append({
+                    'filename': filename,
+                    'path': file_path,
+                    'size': file_stat.st_size,
+                    'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+    
+    return files_info
+
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -992,6 +1043,7 @@ def index():
                          cache_stats=cache_stats,
                          username=session['user'])
 @app.route('/debug_files')
+@require_login
 def debug_files():
     """Debug route to see what files exist for current user"""
     if 'user' not in session:
@@ -1031,7 +1083,52 @@ def debug_files():
         'files': file_info
     })
 
+@app.route('/debug_file_size/<filename>')
+@require_login
+def debug_file_size(filename):
+    """Debug file size discrepancy"""
+    username = session['user']
+    user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    file_path = os.path.join(user_upload_folder, filename)
+    
+    debug_info = {}
+    
+    if os.path.exists(file_path):
+        # Get actual file size
+        actual_size = os.path.getsize(file_path)
+        debug_info['actual_file_size_bytes'] = actual_size
+        debug_info['actual_file_size_mb'] = actual_size / (1024 * 1024)
+        
+        # Check if it's compressed or if content was modified
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                debug_info['content_length_chars'] = len(content)
+                debug_info['estimated_size_mb'] = len(content.encode('utf-8')) / (1024 * 1024)
+                
+            # Try to parse JSON to see if it's valid
+            import json
+            try:
+                data = json.loads(content)
+                if isinstance(data, dict):
+                    debug_info['json_type'] = 'object'
+                    debug_info['top_level_keys'] = list(data.keys())
+                elif isinstance(data, list):
+                    debug_info['json_type'] = 'array'
+                    debug_info['array_length'] = len(data)
+                
+            except json.JSONDecodeError as e:
+                debug_info['json_error'] = str(e)
+                
+        except Exception as e:
+            debug_info['read_error'] = str(e)
+    else:
+        debug_info['error'] = 'File not found'
+    
+    return jsonify(debug_info)
+
 @app.route('/list_processed_files')
+@require_login
 def list_processed_files():
     """List existing processed files for current user"""
     if 'user' not in session:
@@ -1100,6 +1197,7 @@ def test():
     return f"Static path: {static_path}<br>Files: {files}"
 
 @app.route('/get_parsed_data/<task_id>')
+@require_login
 def get_parsed_data(task_id):
     """Return the parsed JSON data for a given task_id"""
     if 'user' not in session:
@@ -1159,8 +1257,43 @@ def process_subset():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-    
+
+def track_file_size_during_upload(original_file, saved_path):
+    """Track file size changes during upload process"""
+    try:
+        # Get original file size from the upload
+        original_file.seek(0, 2)  # Seek to end
+        original_size = original_file.tell()
+        original_file.seek(0)  # Reset to beginning
+        
+        # Get saved file size
+        saved_size = os.path.getsize(saved_path)
+        
+        # Log the comparison
+        size_diff = original_size - saved_size
+        percentage_change = (size_diff / original_size) * 100 if original_size > 0 else 0
+        
+        print(f"File size tracking:")
+        print(f"  Original upload: {original_size:,} bytes ({original_size/(1024*1024):.1f} MB)")
+        print(f"  Saved file: {saved_size:,} bytes ({saved_size/(1024*1024):.1f} MB)")
+        print(f"  Difference: {size_diff:,} bytes ({percentage_change:.1f}% change)")
+        
+        if abs(percentage_change) > 5:  # Alert if more than 5% difference
+            print(f"WARNING: Significant file size change detected!")
+            
+        return {
+            'original_size': original_size,
+            'saved_size': saved_size,
+            'size_difference': size_diff,
+            'percentage_change': percentage_change
+        }
+        
+    except Exception as e:
+        print(f"Error tracking file size: {e}")
+        return None
+
 @app.route('/upload_raw', methods=['POST'])
+@require_login
 def upload_raw():
     """Handle raw Google location history JSON upload for parsing"""
     if 'user' not in session:
@@ -1187,6 +1320,7 @@ def upload_raw():
     # Save to user's folder
     upload_path = os.path.join(user_upload_folder, f"{task_id}_{filename}")
     file.save(upload_path)
+
     
     # Get settings for parsing
     settings = {
@@ -1311,10 +1445,8 @@ def upload_raw():
         'step': 'parsing'
     })
 
-
-
-
 @app.route('/upload_parsed', methods=['POST'])
+@require_login
 def upload_parsed():
     """Handle pre-parsed/cleaned location JSON for analysis"""
     if 'user' not in session:
@@ -1424,6 +1556,7 @@ def upload_parsed():
         return jsonify({'error': f'Failed to process uploaded file: {str(e)}'}), 400
 
 @app.route('/analyze/<task_id>', methods=['POST'])
+@require_login
 def analyze(task_id):
     """Start geocoding and analysis of parsed location data"""
     if 'user' not in session:
@@ -2109,7 +2242,46 @@ def create_html_views(output_dir, generated_files, task_id):
     
     return html_files
 
+@app.route('/list_all_user_files')
+@require_login
+def list_all_user_files():
+    """List both master and parsed files for current user"""
+    username = session['user']
+    user_uploads_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    user_processed_path = os.path.join(app.config['PROCESSED_FOLDER'], username)
+    
+    all_files = {'master_files': [], 'parsed_files': []}
+    
+    # Get master files from uploads folder
+    if os.path.exists(user_uploads_path):
+        for filename in os.listdir(user_uploads_path):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_uploads_path, filename)
+                file_stat = os.stat(file_path)
+                all_files['master_files'].append({
+                    'filename': filename,
+                    'size_mb': round(file_stat.st_size / (1024*1024), 2),
+                    'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                    'type': 'Master'
+                })
+    
+    # Get parsed files from processed folder
+    if os.path.exists(user_processed_path):
+        for filename in os.listdir(user_processed_path):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_processed_path, filename)
+                file_stat = os.stat(file_path)
+                all_files['parsed_files'].append({
+                    'filename': filename,
+                    'size_mb': round(file_stat.st_size / (1024*1024), 2),
+                    'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                    'type': 'Parsed'
+                })
+    
+    return jsonify(all_files)
+
 @app.route('/progress/<task_id>')
+@require_login
 def get_unified_progress(task_id):
     """Get unified progress for both parsing and analysis"""
     if 'user' not in session:
@@ -2139,6 +2311,7 @@ def get_unified_progress(task_id):
     return jsonify(progress_data)
 
 @app.route('/download/<path:output_dir>/<path:filename>')
+@require_login
 def download_file(output_dir, filename):
     """Download generated files (CSV or HTML)"""
     if 'user' not in session:
@@ -2155,6 +2328,7 @@ def download_file(output_dir, filename):
         return jsonify({'error': f'Download failed: {str(e)}'}), 500
 
 @app.route('/download_all/<task_id>')
+@require_login
 def download_all(task_id):
     """Download all results as a ZIP file"""
     if 'user' not in session:
@@ -2193,6 +2367,7 @@ def download_all(task_id):
     )
 
 @app.route('/results/<task_id>')
+@require_login
 def results(task_id):
     """Show results page with both CSV downloads and HTML views"""
     if 'user' not in session:
@@ -2233,6 +2408,7 @@ def results(task_id):
                          files_info=files_info)
 
 @app.route('/processing/<task_id>')
+@require_login
 def processing(task_id):
     """Show processing page with real-time updates"""
     if 'user' not in session:
@@ -2246,6 +2422,7 @@ def processing(task_id):
     return render_template('processing.html', task_id=task_id)
 
 @app.route('/cache_info')
+@require_login
 def cache_info():
     """Get detailed cache information"""
     if not ANALYZER_AVAILABLE:
@@ -2282,6 +2459,7 @@ def cache_info():
         })
 
 @app.route('/clear_cache', methods=['POST'])
+@require_login
 def clear_cache():
     """Clear the user's geocoding cache"""
     if 'user' not in session:
@@ -2313,8 +2491,52 @@ def clear_cache():
         })
     except Exception as e:
         return jsonify({'error': f'Failed to clear cache: {str(e)}'}), 500
+
+@app.route('/cleanup_water_detection', methods=['POST'])
+@require_login
+def cleanup_water_detection():
+    """Remove water detection references from user config"""
+    username = session['user']
     
+    # Clean up user config
+    config = load_user_config(username)
+    
+    # Remove water-related keys if they exist
+    water_keys = ['onwater_key', 'water_detection_enabled', 'water_api_key']
+    removed_keys = []
+    
+    for key in water_keys:
+        if key in config:
+            del config[key]
+            removed_keys.append(key)
+    
+    # Save cleaned config
+    save_user_config(username, config)
+    
+    # Also clean up user's geocoding cache of water entries
+    try:
+        user_cache = load_user_geo_cache(username)
+        water_entries = [k for k in user_cache.keys() if k.startswith('water:')]
+        
+        for key in water_entries:
+            del user_cache[key]
+        
+        save_user_geo_cache(username, user_cache)
+        
+        return jsonify({
+            'message': 'Water detection references cleaned up',
+            'removed_config_keys': removed_keys,
+            'removed_cache_entries': len(water_entries)
+        })
+    except Exception as e:
+        return jsonify({
+            'message': 'Config cleaned, cache cleanup failed',
+            'removed_config_keys': removed_keys,
+            'cache_error': str(e)
+        })   
+
 @app.route('/view/<path:output_dir>/<path:filename>')
+@require_login
 def view_html(output_dir, filename):
     """View HTML reports in the browser"""
     if 'user' not in session:
@@ -2349,6 +2571,7 @@ def health_check():
 
 
 @app.route('/download/processed/<username>/<filename>')
+@require_login
 def download_processed_file(username, filename):
     """Download a processed file"""
     if 'user' not in session or session['user'] != username:

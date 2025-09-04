@@ -1,6 +1,6 @@
 # Google location history Location Processor
 
-Process and analyze Google Location History data with geocoding and travel analysis.
+Process and analyze Google Location History data from mobile device(not takeout) with geocoding and travel analysis.
 
 ## Features
 - Parse Google Location History JSON files from mobile uploads, NOT for takeout file structures

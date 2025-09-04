@@ -16,5 +16,14 @@
       "google": "AIzaSyAjYnMBXu9UkZLe68c9zdLv374UzbeGhY8"
     },
     "created": "2025-09-04T08:02:51.813414"
+  },
+  "yeti": {
+    "password": "b4788e9005b1150780694cdaea5b4f345858a24397a74dda6f94a6c200fb2e38",
+    "email": "",
+    "api_keys": {
+      "geoapify": "",
+      "google": ""
+    },
+    "created": "2025-09-04T13:20:00.610462"
   }
 }
