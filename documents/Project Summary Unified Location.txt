@@ -1,0 +1,130 @@
+## **Project Summary: Unified Location Processor Web Application** 9_4
+
+New Name "WWI" for Where Was I?
+
+We're building a web application that processes Google Location History data in two steps:
+
+### **What It Does:**
+1. **Step 1**: Parses raw Google location JSON files (from mobile devices - NOT the takeout version), allows user to filter by date range, and cleans noisy data by filtering down the data points by duration - do not collect many data points timed close together, by distance - do not collect many data points next to each other, and by probability which is a factor set in the google json.  These filters then are duration in seconds, distance in meters, and probability.  Then the application writes out a parsed json file in the same format as the mobile one, with an added section at the front which defines the dates, and all the filter settings.
+2. **Step 2**: Geocodes coordinates from the parsed file to cities/countries and generates travel analysis reports (CSV + HTML views). There are 3 views - days in each city, days in each state (or if outside US by country), and city jumps - this shows travel from city to city with distance travelled between each, and total distance travelled.
+
+Data is stored in a folder structure, but also in a DB via a javascript storage manager.  The files in this system are Master - the original JSON from google, and the parsed files which are the result of the app parsing the Master file.  Clearing the browser cache will destroy any of these files.  It would be nice to be able to RELOAD these into the storage manager if the browser is reset, OR allow the user to optionally load them into the storage manager from the local files.
+
+### User Account Setup
+In order to allow different people to use this app, there is a simple user model, which is designed to allow/require a user to use their own API keys, and to work only on their data.  This system creates a user file inside processed folder with the folder there as username. So mainapp/processed/<username> will  contain any data files they have parsed.  In addition, inside the config folder there is a folder called users which contains folders for each username. This folder contains that user's api keys and geo_cache file.  It is supposed to also contain the web_config.json file that contains each user's geoappify and google maps API keys, but in our current version this is broken.  All files each user uploads (master files usually) should be stored in their uploads folder - eg /uploads/<username>/location-history.json.
+
+### **Main Issues We need to resolve.
+
+The issues listed above, and
+
+Items to fix 9/4
+
+1. on the results page, when displaying everything, the header needs more descriptive info.
+- Add under the heading - Analyzed date range: x/x/xxxx to x/x/xxxx Resolution for location points was 2000M, .5 probability, and 600 seconds.  (This better describes the results that were generated).
+
+
+2. Big One.  This program IS partitioning out the API keys, but is NOT partitioning out the access to location data files. When a new user creates an account, they do need to provide their API keys(which is good), but they still see data from other users, even though the folder for data has been created on the PC.  *** We need to be sure that each user account ONLY has access to their master file, and their parsed files. When a new user creates an account they should have nothing to start with.  
+
+
+3. In a prior build, we inadvertently added "your processed files" section on the top of the main page.  remove this information as it is already in the java files list view.
+
+4. I don't think we need the "Managed Saved Files" button AND the javascript floating small window.  One or the other will suffice because they do the same thing.  It might be simpler to just get rid of that small javascript window, and rely on the button below to access the javascript file list. 
+
+5. On the main javascript file view, this is mostly looking good. Just need to remove the tab for 'date ranges' because it does not do anything.  Last item - on this javascript list files view, the header is light grey and the text is white and is unreadable. Make the text black, and make it say "Location data for <username>"
+
+6. Discover why when I upload a 54MB location file as a master, it is listed as only 36.5MB.
+
+7. Remove the source of the thing that creates "DEBUG: updateOriginalsList called with: (4) [{…}, {…}, {…}, {…}]" in the console. It is no longer necessary.
+
+8. We should totally remove water detection if we are not calling on it and relying on it to improve data.  We should not have an API key for the service, and clean up where that is in the code.
+
+9. UNLESS THERE IS NO Geoapify and Google Maps API key, do not display that on the "Geocode and Analyze" section of unified_Processor.html.  Perhaps there is a button on the bottom that says "API Keys" which expands that area for input/edit if the user wants. If they do not have API keys - We should provide a pointer to an HTML page that describes how to get the geoapify and google API keys.
+
+10. - ALso remove the box just below that header that says "API Keys Required: You need a Geoapify API key for geocoding. Google Maps API key is optional but recommended for better results"  .  
+
+11. - Remove "Geocoding Cache: 1474 cached locations (181.8 KB) will reduce API calls."  Only display Cache statistics in that orange box - "Geocoding Cache has xxxx locations"
+
+
+
+
+Also - error handling
+76e62d37-cda9-4b87-8330-ef4a42e63ddc:1 Error handling response: Error: runtime/sendMessage: The message port closed before a response was received.
+    at chrome-extension://fdjamakpfbbddfjaooikfcpapjohcfmg/content/contentScripts/kwift.CHROME.js:1:184471
+
+
+### File structure
+C:\USERS\TOM\PROGRAMMING\UAPP3
+¦   .env.txt
+¦   .gitignore.txt
+¦   analyzer_bridge.py
+¦   csv_exporter.py
+¦   filestructure.txt
+¦   geo_utils.py
+¦   legacy_analyzer.py
+¦   location_analyzer.py
+¦   modern_analyzer_bridge.py
+¦   next bugs to fix 8_30.txt
+¦   parser_app.py
+¦   readme.md
+¦   requirements.txt
+¦   settings.json
+¦   testing data density.txt
+¦   unified_app.py
+¦   
++---config
+¦   ¦   geo_cache.json
+¦   ¦   secret.txt
+¦   ¦   unified_config.json
+¦   ¦   users.json
+¦   ¦   web_config.json
+¦   ¦   
+¦   +---users
+¦       +---gonz
+¦       ¦       config.json
+¦       ¦       geo_cache.json
+¦       ¦       
+¦       +---tom
+¦               config.json
+¦               geo_cache.json
+¦               
++---outputs      
+¦   +---gonz
+¦   ¦   +---analysis_20250903_095651_fefb6d90
+¦   ¦   ¦       analysis_summary.txt
+¦   ¦   ¦       by_city_location_days.csv
+¦   ¦   ¦       by_city_location_days.html
+¦   ¦   ¦       by_state_location_days.csv
+¦   ¦   ¦       by_state_location_days.html
+¦   ¦   ¦       city_jumps_with_mode.csv
+¦   ¦   ¦       city_jumps_with_mode.html
+¦   ¦   ¦       
++---processed
+¦   ¦   
+¦   +---gonz
+¦   ¦       01-02-22__04-01-22_parsed_2000_0.5_2000.json
+¦   ¦       01-02-25__09-01-25_parsed_2000_0.5_2000.json
+¦   ¦       02-02-23__03-02-23_parsed_2000_0.5_2000.json
+¦   ¦       
+¦   +---tom
+¦           11-01-24__01-04-25_parsed_2000_0.1_600.json
+¦           
++---static
+¦   +---css
+¦   ¦       storage-styles.css
+¦   ¦       
+¦   +---js
+¦           storage-integration.js
+¦           storage-manager.js
+¦           
++---templates
+¦       login.html
+¦       processing.html
+¦       register.html
+¦       results.html
+¦       unified_processor.html
+¦       
++---uploads
+¦   +---gonz
+¦   +---tom
+
+        

@@ -1,0 +1,27 @@
+Example header of a file we have parsed:
+
+{
+  "_metadata": {
+    "version": "1.0",
+    "parsedAt": "2025-09-02T18:25:35.895464",
+    "dateRange": {
+      "from": "2022-01-02",
+      "to": "2022-03-01"
+    },
+    "filterSettings": {
+      "distanceThreshold": 2000.0,
+      "probabilityThreshold": 0.5,
+      "durationThreshold": 2000
+    },
+    "statistics": {
+      "total_entries": 70874,
+      "date_filtered": 809,
+      "activities": 226,
+      "visits": 161,
+      "timeline_paths": 258,
+      "final_count": 645
+    },
+    "isParsed": true
+
+
+This way we can look at a parsed file and see how it is parsed.  We also know we do not have to parse it again. It is not from google, and has been cleaned up.

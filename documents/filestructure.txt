@@ -1,0 +1,414 @@
+Folder PATH listing for volume Overflo
+Volume serial number is 047D-A18A
+C:\USERS\TOM\PROGRAMMING\UAPP3
+¦   .env.txt
+¦   .gitignore.txt
+¦   analyzer_bridge.py
+¦   csv_exporter.py
+¦   filestructure.txt
+¦   geo_utils.py
+¦   legacy_analyzer.py
+¦   location_analyzer.py
+¦   modern_analyzer_bridge.py
+¦   next bugs to fix 8_30.txt
+¦   parser_app.py
+¦   readme.md
+¦   requirements.txt
+¦   settings.json
+¦   testing data density.txt
+¦   unified_app.py
+¦   
++---config
+¦   ¦   geo_cache.json
+¦   ¦   secret.txt
+¦   ¦   unified_config.json
+¦   ¦   users.json
+¦   ¦   web_config.json
+¦   ¦   
+¦   +---users
+¦       +---gonz
+¦       ¦       config.json
+¦       ¦       geo_cache.json
+¦       ¦       
+¦       +---tom
+¦               config.json
+¦               geo_cache.json
+¦               
++---outputs
+¦   +---analysis_20250831_084004_54de22ce
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_085431_1f7cb782
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_134556_0d75f474
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_135551_258876e4
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_140212_5f2df1ed
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_140509_8ed9acd4
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_140714_8c3f2ce2
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_140924_b2777a24
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_151844_e2367cd5
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_164145_04dc1c3a
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_164631_ca8b937e
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250831_164805_69ef9d76
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_075846_39132ab1
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_084846_434833ad
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_163152_ae43b6b0
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_171449_c40d948e
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_171616_a79d6efe
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_173400_51bd5431
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_174424_0f2d9ca9
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_174813_ad291dd7
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_175659_961adf6f
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_175757_fba84d51
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_180822_0351ebc8
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_180844_5302e801
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250901_181236_cbd5c096
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_124233_17064257
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_124458_dc618087
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_171456_9864be9b
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_181738_5badd9b4
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_182541_5d500a04
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---analysis_20250902_184733_266e63eb
+¦   ¦       analysis_summary.txt
+¦   ¦       by_city_location_days.csv
+¦   ¦       by_city_location_days.html
+¦   ¦       by_state_location_days.csv
+¦   ¦       by_state_location_days.html
+¦   ¦       city_jumps_with_mode.csv
+¦   ¦       city_jumps_with_mode.html
+¦   ¦       
+¦   +---gonz
+¦   ¦   +---analysis_20250903_095651_fefb6d90
+¦   ¦   ¦       analysis_summary.txt
+¦   ¦   ¦       by_city_location_days.csv
+¦   ¦   ¦       by_city_location_days.html
+¦   ¦   ¦       by_state_location_days.csv
+¦   ¦   ¦       by_state_location_days.html
+¦   ¦   ¦       city_jumps_with_mode.csv
+¦   ¦   ¦       city_jumps_with_mode.html
+¦   ¦   ¦       
+¦   ¦   +---analysis_20250903_112838_5c64d1d6
+¦   ¦   +---analysis_20250903_135744_4b5a4ba3
+¦   ¦   ¦       analysis_summary.txt
+¦   ¦   ¦       by_city_location_days.csv
+¦   ¦   ¦       by_city_location_days.html
+¦   ¦   ¦       by_state_location_days.csv
+¦   ¦   ¦       by_state_location_days.html
+¦   ¦   ¦       city_jumps_with_mode.csv
+¦   ¦   ¦       city_jumps_with_mode.html
+¦   ¦   ¦       
+¦   ¦   +---analysis_20250903_162202_30c9295f
+¦   ¦   ¦       analysis_summary.txt
+¦   ¦   ¦       by_city_location_days.csv
+¦   ¦   ¦       by_city_location_days.html
+¦   ¦   ¦       by_state_location_days.csv
+¦   ¦   ¦       by_state_location_days.html
+¦   ¦   ¦       city_jumps_with_mode.csv
+¦   ¦   ¦       city_jumps_with_mode.html
+¦   ¦   ¦       
+¦   ¦   +---analysis_20250903_162259_eadd99b8
+¦   ¦   ¦       analysis_summary.txt
+¦   ¦   ¦       by_city_location_days.csv
+¦   ¦   ¦       by_city_location_days.html
+¦   ¦   ¦       by_state_location_days.csv
+¦   ¦   ¦       by_state_location_days.html
+¦   ¦   ¦       city_jumps_with_mode.csv
+¦   ¦   ¦       city_jumps_with_mode.html
+¦   ¦   ¦       
+¦   ¦   +---analysis_20250904_104141_61d1704d
+¦   ¦           analysis_summary.txt
+¦   ¦           by_city_location_days.csv
+¦   ¦           by_city_location_days.html
+¦   ¦           by_state_location_days.csv
+¦   ¦           by_state_location_days.html
+¦   ¦           city_jumps_with_mode.csv
+¦   ¦           city_jumps_with_mode.html
+¦   ¦           
+¦   +---tom
+¦       +---analysis_20250904_080505_76e62d37
+¦               analysis_summary.txt
+¦               by_city_location_days.csv
+¦               by_city_location_days.html
+¦               by_state_location_days.csv
+¦               by_state_location_days.html
+¦               city_jumps_with_mode.csv
+¦               city_jumps_with_mode.html
+¦               
++---processed
+¦   ¦   01-02-22__03-01-22_parsed_2000_0.5_2000.json
+¦   ¦   01-02-25__09-01-25_parsed_2000_0.5_2000.json
+¦   ¦   1-1-2021--6_1_2021.json
+¦   ¦   
+¦   +---gonz
+¦   ¦       01-02-22__04-01-22_parsed_2000_0.5_2000.json
+¦   ¦       01-02-25__09-01-25_parsed_2000_0.5_2000.json
+¦   ¦       02-02-23__03-02-23_parsed_2000_0.5_2000.json
+¦   ¦       
+¦   +---tom
+¦           11-01-24__01-04-25_parsed_2000_0.1_600.json
+¦           
++---static
+¦   +---css
+¦   ¦       storage-styles.css
+¦   ¦       
+¦   +---js
+¦           storage-integration.js
+¦           storage-manager.js
+¦           
++---templates
+¦       login.html
+¦       processing.html
+¦       register.html
+¦       results.html
+¦       unified_processor.html
+¦       
++---uploads
+¦   +---gonz
+¦   +---tom
++---__pycache__
+        analyzer_bridge.cpython-313.pyc
+        csv_exporter.cpython-313.pyc
+        geo_utils.cpython-313.pyc
+        legacy_analyzer.cpython-313.pyc
+        location_analyzer.cpython-313.pyc
+        modern_analyzer_bridge.cpython-313.pyc
+        parser_app.cpython-313.pyc
+        unified_app.cpython-313.pyc
+        

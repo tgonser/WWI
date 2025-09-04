@@ -1,0 +1,7 @@
+{
+  "distance_threshold": 2000.0,
+  "probability_threshold": 0.5,
+  "duration_threshold": 2000,
+  "last_start_date": "2024-11-01",
+  "last_end_date": "2025-01-04"
+}
