@@ -350,6 +350,16 @@ function updateSubsetsList(subsets) {
     });
 }
 
+function displayExistingFiles(data) {
+    // Redirect to your existing function
+    if (Array.isArray(data)) {
+        displaySecureFilesList(data);
+    } else {
+        displayAllUserFiles(data);
+    }
+}
+
+
 // Helper function to format date range
 function formatDateRange(dateRange) {
     if (!dateRange) return 'Unknown';
@@ -880,8 +890,8 @@ async function showAllSavedData() {
         // Default to files tab instead of upload
         switchTab('originals');
         
-        // Load secure server data instead of browser storage
-        await loadSecureServerData();
+        // Use the original storage system that creates the rich interface
+        await refreshDataSourcesList();  // <-- USE THIS INSTEAD
     }
 }
 
