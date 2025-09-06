@@ -243,6 +243,9 @@ async def single_reverse_geocode_fixed(lat: float, lon: float, geoapify_key: str
             params = {"lat": lat, "lon": lon, "apiKey": geoapify_key, "format": "geojson"}
             
             async with session.get(url, params=params, timeout=10) as response:
+                # NEW: Log API response status for debugging
+                if log_func:
+                    log_func(f"API Response: {response.status} for ({lat:.3f}, {lon:.3f})")
                 if response.status == 200:
                     data = await response.json()
                     features = data.get("features", [])
@@ -324,9 +327,11 @@ def reverse_geocode(lat, lon, geoapify_key, google_key, delay=0.5, log_func=None
         url = f"https://api.geoapify.com/v1/geocode/reverse?lat={lat}&lon={lon}&apiKey={geoapify_key}"
         try:
             response = requests.get(url)
+            if log_func:
+                log_func(f"API Response: {response.status_code} for ({lat:.3f}, {lon:.3f})")
             response.raise_for_status()
-            api_call_made = True
             
+            api_call_made = True
             data = response.json()
             features = data.get("features", [])
             if features:
