@@ -144,15 +144,28 @@ function updateRecentSubsets(subsets) {
     });
 }
 
-// Updated updateOriginalsList to properly show master and parsed files
+
+// Modified updateOriginalsList - remove buttons from content, add them to modal level
 function updateOriginalsList(originals) {
-    console.log('DEBUG: updateOriginalsList called with:', originals);
+    console.log('=== DEBUG: updateOriginalsList MODAL BUTTONS ===');
+    
     const listDiv = document.getElementById('originalFilesList');
     if (!listDiv) return;
-    
+    // Remove any CSS classes and scroll properties from outer container
+    listDiv.className = '';
+    listDiv.style.maxHeight = 'none';
+    listDiv.style.overflow = 'visible';
+
+    // ALSO fix the modal-body container
+    const modalBody = listDiv.closest('.modal-body');
+    if (modalBody) {
+        modalBody.style.maxHeight = 'none';
+        modalBody.style.overflow = 'visible';
+    }
+   
     listDiv.innerHTML = '';
 
-    // Handle both formats - if passed sources object or just originals array
+    // Handle both formats
     let filesList = originals;
     if (originals && originals.originals) {
         filesList = originals.originals;
@@ -160,20 +173,20 @@ function updateOriginalsList(originals) {
 
     if (!filesList || !Array.isArray(filesList)) {
         listDiv.innerHTML = '<p class="no-data">No files loaded</p>';
+        // Remove any existing modal buttons since no files
+        removeModalButtons();
         return;
     }
 
-    // First, find the MASTER file (largest, oldest, or specifically marked)
+    // Find master and parsed files
     let masterFile = null;
     let parsedFiles = [];
     
     filesList.forEach(file => {
-        // Check if it's marked as master or if it's a raw Google file
         const hasMetadataTag = file.metadata && file.metadata.isParsed;
         const isParsedFile = file.filename.includes('parsed_') || hasMetadataTag;
         
         if (!isParsedFile) {
-            // This is likely the master - typically the largest file without 'parsed' in name
             if (!masterFile || file.size > masterFile.size) {
                 masterFile = file;
             }
@@ -182,12 +195,10 @@ function updateOriginalsList(originals) {
         }
     });
     
-    // If no master identified yet, use the largest file
     if (!masterFile && filesList.length > 0) {
         masterFile = filesList.reduce((prev, current) => 
             (prev.size > current.size) ? prev : current
         );
-        // Remove from parsed files if it was there
         parsedFiles = parsedFiles.filter(f => f.id !== masterFile.id);
     }
     
@@ -217,17 +228,32 @@ function updateOriginalsList(originals) {
         
         listDiv.appendChild(masterSection);
         
-        // Display Parsed Files Section
+        // Display Parsed Files Section WITHOUT BUTTONS
         if (parsedFiles.length > 0) {
-            const parsedSection = document.createElement('div');
-            parsedSection.innerHTML = '<h4 style="margin: 20px 0 10px 0;">Parsed Files</h4>';
+            console.log('DEBUG: Creating parsed files table WITHOUT buttons');
             
-            // Create table for parsed files
+            const parsedHeader = document.createElement('h4');
+            parsedHeader.textContent = 'Parsed Files';
+            parsedHeader.style.cssText = 'margin: 20px 0 10px 0;';
+            listDiv.appendChild(parsedHeader);
+            
+            // Table container - NO BUTTONS INSIDE
+            const parsedSection = document.createElement('div');
+            parsedSection.style.cssText = `
+                    max-height: 300px;
+                    overflow-y: auto;
+                    overflow-x: hidden;
+                    border: 1px solid #dee2e6;
+                    border-radius: 8px;
+                    margin-bottom: 15px;
+            `;
+            
+            // Create table
             const table = document.createElement('table');
             table.style.cssText = 'width: 100%; border-collapse: collapse;';
             table.innerHTML = `
                 <thead>
-                    <tr style="background: #f8f9fa;">
+                    <tr style="background: #f8f9fa; position: sticky; top: 0;">
                         <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Select</th>
                         <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Name</th>
                         <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">From</th>
@@ -261,28 +287,129 @@ function updateOriginalsList(originals) {
             
             table.innerHTML += '</tbody>';
             parsedSection.appendChild(table);
-            
-            // Add action buttons
-            const actions = document.createElement('div');
-            actions.style.cssText = 'margin-top: 15px; display: flex; gap: 10px;';
-            actions.innerHTML = `
-                <button onclick="processSelectedParsedFile()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Process Selected</button>
-                <button onclick="deleteSelectedParsedFiles()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete Selected</button>
-            `;
-            parsedSection.appendChild(actions);
-            
             listDiv.appendChild(parsedSection);
+            
+            // CREATE BUTTONS AT MODAL LEVEL (like Clear All Data)
+            createModalLevelButtons();
+            
+            console.log('DEBUG: Modal level buttons created');
+        } else {
+            // No parsed files, remove any existing modal buttons
+            removeModalButtons();
         }
     } else {
-        // No files yet
         listDiv.innerHTML = `
             <div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; color: #856404;">No location data files loaded yet.</p>
                 <p style="margin: 10px 0 0 0; color: #856404;">Upload your Google location-history.json file to get started.</p>
             </div>
         `;
+        removeModalButtons();
     }
 }
+
+function createModalLevelButtons() {
+    // Remove any existing modal buttons first
+    removeModalButtons();
+    
+    // Find where Clear All Data button is - we want to be near there
+    const clearAllButton = document.querySelector('button[onclick*="clearAllStorage"]');
+    let targetContainer = null;
+    
+    if (clearAllButton) {
+        // Put buttons in the same container as Clear All Data
+        targetContainer = clearAllButton.parentElement;
+    } else {
+        // Fallback: find the modal and put at bottom
+        const modal = document.getElementById('dataManagerModal');
+        targetContainer = modal;
+    }
+    
+    if (!targetContainer) return;
+    
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.id = 'modalActionButtons';
+    buttonContainer.style.cssText = `
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    `;
+    
+    buttonContainer.innerHTML = `
+        <button onclick="processSelectedParsedFile()" style="
+            padding: 8px 16px; 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px;
+            font-weight: bold;
+        ">Process</button>
+        <button onclick="deleteSelectedParsedFiles()" style="
+            padding: 8px 16px; 
+            background: #dc3545; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px;
+            font-weight: bold;
+        ">Delete</button>
+    `;
+    
+    // Insert before Clear All Data button if it exists, otherwise append
+    if (clearAllButton) {
+        targetContainer.insertBefore(buttonContainer, clearAllButton.parentElement === targetContainer ? clearAllButton : null);
+    } else {
+        targetContainer.appendChild(buttonContainer);
+    }
+    
+    console.log('Modal level buttons added near Clear All Data');
+}
+
+function removeModalButtons() {
+    const existingButtons = document.getElementById('modalActionButtons');
+    if (existingButtons) {
+        existingButtons.remove();
+        console.log('Removed existing modal buttons');
+    }
+}
+
+// Make functions globally available
+window.createModalLevelButtons = createModalLevelButtons;
+window.removeModalButtons = removeModalButtons;
+
+
+function removeModalButtons() {
+    const existingButtons = document.getElementById('modalActionButtons');
+    if (existingButtons) {
+        existingButtons.remove();
+        console.log('Removed existing modal buttons');
+    }
+}
+
+// Make functions globally available
+window.createModalLevelButtons = createModalLevelButtons;
+window.removeModalButtons = removeModalButtons;
+
+function removeModalButtons() {
+    const existingButtons = document.getElementById('modalActionButtons');
+    if (existingButtons) {
+        existingButtons.remove();
+        console.log('Removed existing modal buttons');
+    }
+}
+
+// Make functions globally available
+window.createModalLevelButtons = createModalLevelButtons;
+window.removeModalButtons = removeModalButtons;
 
 function updateSubsetsList(subsets) {
     const listDiv = document.getElementById('subsetsList');
@@ -871,6 +998,12 @@ async function updateStorageInfo() {
         if (storageInfo) {
             storageInfo.textContent = `Storage: ${usedMB} MB / ${quotaMB} MB (${percentUsed}%)`;
             
+            // Make text smaller and position at bottom
+            storageInfo.style.fontSize = '0.8em';
+            storageInfo.style.color = '#666';
+            storageInfo.style.marginTop = 'auto';
+            storageInfo.style.paddingTop = '10px';
+            
             if (percentUsed > 80) {
                 storageInfo.style.color = 'orange';
             } else if (percentUsed > 95) {
@@ -880,18 +1013,38 @@ async function updateStorageInfo() {
     }
 }
 
-// FIX 2: Modified to default to files tab
+// Updated showAllSavedData function with scroll fix
 async function showAllSavedData() {
     // Show the modal
     const modal = document.getElementById('dataManagerModal');
     if (modal) {
         modal.style.display = 'block';
         
+        // Fix header visibility - dark background with white text
+        const modalHeader = modal.querySelector('.modal-header');
+        if (modalHeader) {
+            modalHeader.style.backgroundColor = '#343a40';
+            modalHeader.style.color = 'white';
+            modalHeader.style.padding = '15px 20px';
+            
+            const title = modalHeader.querySelector('h2');
+            if (title) {
+                title.style.color = 'white';
+                title.style.margin = '0';
+            }
+            
+            const closeBtn = modalHeader.querySelector('.close');
+            if (closeBtn) {
+                closeBtn.style.color = 'white';
+                closeBtn.style.fontSize = '24px';
+            }
+        }
+        
         // Default to files tab instead of upload
         switchTab('originals');
         
         // Use the original storage system that creates the rich interface
-        await refreshDataSourcesList();  // <-- USE THIS INSTEAD
+        await refreshDataSourcesList();
     }
 }
 

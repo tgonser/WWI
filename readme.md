@@ -1,93 +1,128 @@
-# Google location history Location Processor
+# Unified Location Data Processor
 
-Process and analyze Google Location History data from mobile device(not takeout) with geocoding and travel analysis.
+A web-based tool for parsing and analyzing Google location history data with geocoding capabilities.
 
-## Features
-- Parse Google Location History JSON files from mobile uploads, NOT for takeout file structures
-- Step one - Filter by date range and thresholds to produce smaller, better files
-- Step 2 - Geocode locations using Geoapify/Google APIs
-- Result: Generate travel analysis reports (CSV and HTML)
-- Caching system to reduce API calls
-- Batch send APIs
+## What This Does
 
-## Notes:
-When parsing, we find a setting of 600-2000 for distance (Meters), and 500-100 (seconds) is good. MORE than this misses data, less is just noise.  The probability we set to .25 but it does not impact much unless you make it higher than .65-.8
+- **Parse** raw Google location history JSON files into manageable date ranges
+- **Geocode** location coordinates into readable addresses (cities, states, countries)
+- **Analyze** movement patterns, visits, and travel distances
+- **Export** results as CSV files and interactive HTML reports
+- **Store** processed data locally for quick access
 
-## Setup
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run: `python unified_app.py`
-4. Open browser to `http://localhost:5000`
+## Setup Requirements
 
-## Required API Keys
-- Geoapify API key (required for geocoding)
-- Google Maps API key (optional, for enhanced results)
+### Required Files
+Copy these files from your existing LAweb application:
+- `modern_analyzer_bridge.py`
+- `geo_utils.py` 
+- `csv_exporter.py`
+- `location_analyzer.py`
+- `legacy_analyzer.py`
+
+### Python Dependencies
+```bash
+pip install flask pandas requests werkzeug
+```
+
+### API Keys Required
+- **Geoapify API key** (for geocoding) - Get from https://geoapify.com
+- **Google Geocoding API key** (optional backup) - Get from Google Cloud Console
+
+## How to Run
+
+1. Start the server:
+   ```bash
+   python unified_app.py
+   ```
+
+2. Open browser to: `http://localhost:5000`
+
+3. Create an account (first time only)
+
+4. Upload your Google location history JSON file
+
+## User Workflow
+
+### Step 1: Upload Master File
+- Upload your raw `location-history.json` from Google Takeout
+- This becomes your "master file" for creating date ranges
+
+### Step 2: Parse Date Ranges  
+- Select date range to parse (e.g., "2024-01-01" to "2024-12-31")
+- Set filtering thresholds:
+  - **Distance**: Minimum meters between points (default: 200m)
+  - **Duration**: Minimum seconds at a location (default: 600s) 
+  - **Probability**: Minimum confidence for visits (default: 0.1)
+
+### Step 3: Analyze Parsed Data
+- Add your API keys in settings
+- Choose analysis date range
+- System geocodes coordinates and generates reports
+
+### Step 4: View Results
+- Download CSV files (by city, by state, travel logs)
+- View interactive HTML reports
+- Export all results as ZIP file
+
+## File Management
+
+The application creates separate folders per user:
+- `uploads/[username]/` - Master files
+- `processed/[username]/` - Parsed date ranges  
+- `outputs/[username]/` - Analysis results
+
+## Security Notes
+
+- Each user has isolated data storage
+- API keys are stored per-user account
+- No data sharing between users
+- Local browser storage for quick file access
+
+## Troubleshooting
+
+### Missing Modules Error
+If you see "Could not import analyzer modules", copy the required files from your LAweb application.
+
+### Geocoding Failures  
+- Check API key validity in user settings
+- Verify API key has geocoding permissions
+- Check API usage limits
+
+### Large File Processing
+- Files over 100MB may take several minutes to parse
+- Monitor progress in the processing screen
+- Browser may appear unresponsive during large file uploads
+
+## Technical Details
+
+- **Backend**: Python Flask server
+- **Frontend**: HTML/JavaScript with browser storage
+- **Data Format**: JSON with metadata for tracking
+- **Geocoding**: Cached results to minimize API calls
+- **Storage**: User-specific folders + browser IndexedDB
+
+## Output Files
+
+### CSV Reports
+- `by_city_location_days.csv` - Days spent in each city
+- `by_state_location_days.csv` - Days spent in each state  
+- `city_jumps.csv` - Travel between cities with distances
+
+### HTML Reports
+- Interactive sortable tables
+- Search functionality
+- Export capabilities
+- Print-friendly formatting
 
 ## Configuration
-Settings are stored in `config/` directory and persist between sessions.
 
+Settings are stored per-user and include:
+- API keys (Geoapify, Google)
+- Default filter thresholds
+- Last used date ranges
+- Geocoding cache (per user)
 
-## Overview
-Thank you for the correction! Here's the updated description:
+---
 
-## Short Description:
-**A privacy-focused Google Timeline analyzer that processes your location history exported directly from Google Maps mobile app, using reverse geocoding to identify places you've visited and creating detailed visualizations and insights about your travel patterns - all processed locally in your browser.**
-
-## Detailed Description for your README:
-
-### What It Does:
-
-**Web Location Analyzer** is a comprehensive tool that transforms your Google Timeline data into meaningful insights and interactive visualizations. It processes the location history JSON file exported directly from the Google Maps mobile app to help you understand your movement patterns and travel history.
-
-### How to Get Your Data:
-
-1. Open Google Maps on your mobile device
-2. Tap your profile picture/icon
-3. Select "Your Timeline"
-4. Tap the three dots menu ("...")
-5. Choose "Location and privacy settings"
-6. Scroll down to "Export Timeline data"
-7. Save the resulting JSON file
-
-**Note:** This uses the NEW Timeline export format from Google Maps mobile, NOT the older Google Takeout files.
-
-### Key Features:
-
-**📊 Data Analysis**
-- Processes the new Google Timeline JSON format (location-history.json)
-- Uses Geoapify and Google reverse geocoding APIs to identify locations from coordinates
-- Identifies and categorizes visits to different places
-- Calculates travel distances and time spent at locations
-- Detects "city jumps" (rapid transitions between distant locations)
-- Analyzes both semantic location data and raw GPS coordinates
-
-**🗺️ Interactive Visualizations**
-- City distribution charts displaying time spent in different cities
-- Month-by-month activity breakdowns
-- Interactive maps with location markers
-- Travel path visualizations
-- Location visit frequency displays
-
-**📈 Statistics & Insights**
-- Total distance traveled
-- Number of unique places visited
-- Time distribution across different cities
-- Visit frequency analysis
-- Activity timeline summaries
-- Monthly and yearly comparisons
-- City jump analysis with distance calculations
-
-**🔒 Privacy-First Design**
-- All processing happens locally in your browser
-- Only coordinates are sent to geocoding APIs (no personal data)
-- Includes geocoding cache to minimize API calls and speed up processing
-- Your location data never leaves your control
-
-### Use Cases:
-- Personal travel history visualization
-- Year-in-review summaries
-- Travel pattern analysis
-- Memory journaling with location context
-- Understanding your daily/monthly movement patterns
-
-This tool is perfect for anyone who wants to gain insights from their location history while maintaining complete privacy and control over their personal data.
+For technical support or questions about the location data format, refer to Google Takeout documentation.

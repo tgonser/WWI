@@ -1835,20 +1835,53 @@ def analyze(task_id):
             error_msg = f'Analysis failed: {str(e)}'
             print(f"DEBUG: Analysis error for task {task_id}: {error_msg}")
             print(f"DEBUG: Error type: {type(e)}")
-            print(f"DEBUG: Progress data keys: {list(unified_progress[current_user][task_id].keys())}")
             
-            # Ensure diagnostics exists before logging error
-            if 'diagnostics' not in unified_progress[current_user][task_id]:
-                unified_progress[current_user][task_id]['diagnostics'] = []
+            # Check if this is a geocoding failure that should be prominently displayed
+            if any(indicator in str(e).lower() for indicator in [
+                'api key', 'unauthorized', 'forbidden', 'geocoding failed catastrophically',
+                'invalid api key', 'api error 401', 'api error 403'
+            ]):
+                # This is a critical API/configuration error
+                user_friendly_msg = "API Configuration Error: "
+                if 'unauthorized' in str(e).lower() or 'api key' in str(e).lower():
+                    user_friendly_msg += "Invalid or missing Geoapify API key. Please check your API key in the settings."
+                elif 'forbidden' in str(e).lower():
+                    user_friendly_msg += "API key permissions error. Your Geoapify API key may not have the required permissions."
+                elif 'geocoding failed catastrophically' in str(e).lower():
+                    user_friendly_msg += "Less than 10% of coordinates could be geocoded. This usually indicates an API key problem or service outage."
+                else:
+                    user_friendly_msg += str(e)
+                
+                # Ensure diagnostics exists before logging error
+                if 'diagnostics' not in unified_progress[current_user][task_id]:
+                    unified_progress[current_user][task_id]['diagnostics'] = []
+                
+                analysis_log(user_friendly_msg)
+                
+                unified_progress[current_user][task_id].update({
+                    'step': 'api_error',
+                    'status': 'FAILURE',
+                    'message': user_friendly_msg,
+                    'error': str(e),
+                    'error_type': 'api_configuration',
+                    'show_error_prominently': True
+                })
+            else:
+                # Regular processing error
+                if 'diagnostics' not in unified_progress[current_user][task_id]:
+                    unified_progress[current_user][task_id]['diagnostics'] = []
+                
+                analysis_log(error_msg)
+                
+                unified_progress[current_user][task_id].update({
+                    'step': 'error',
+                    'status': 'FAILURE', 
+                    'message': error_msg,
+                    'error': str(e),
+                    'error_type': 'processing',
+                    'show_error_prominently': False
+                })
             
-            analysis_log(error_msg)
-            
-            unified_progress[current_user][task_id].update({
-                'step': 'error',
-                'status': 'FAILURE',
-                'message': error_msg,
-                'error': str(e)
-            })
     # Thread creation goes HERE (outside analyze_in_background, inside analyze)
     thread = threading.Thread(target=analyze_in_background)
     thread.daemon = True
@@ -2401,7 +2434,64 @@ def results(task_id):
                         'type': 'CSV Data' if filename.endswith('.csv') else 'HTML View',
                         'is_html': filename.endswith('.html')
                     })
+    # New filter code to parse data from file
+    # Extract actual filter settings from parsed file metadata
+    actual_filters = None
+    date_range = None
     
+    try:
+        # First try to get from in-memory parsed data
+        if progress_data.get('parsed_data') and isinstance(progress_data['parsed_data'], dict):
+            if '_metadata' in progress_data['parsed_data']:
+                metadata = progress_data['parsed_data']['_metadata']
+                actual_filters = metadata.get('filterSettings', {})
+                date_range = metadata.get('dateRange', {})
+        
+        # If not found, try to read from parsed file
+        elif progress_data.get('parsed_file') and os.path.exists(progress_data['parsed_file']):
+            with open(progress_data['parsed_file'], 'r') as f:
+                parsed_data = json.load(f)
+                if isinstance(parsed_data, dict) and '_metadata' in parsed_data:
+                    metadata = parsed_data['_metadata']
+                    actual_filters = metadata.get('filterSettings', {})
+                    date_range = metadata.get('dateRange', {})
+        
+        # Fallback: try to find any parsed file for this user
+        if not actual_filters:
+            user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], session['user'])
+            if os.path.exists(user_processed_folder):
+                # Get the most recent parsed file
+                json_files = [f for f in os.listdir(user_processed_folder) if f.endswith('.json')]
+                if json_files:
+                    json_files.sort(key=lambda x: os.path.getmtime(
+                        os.path.join(user_processed_folder, x)), reverse=True)
+                    recent_file = os.path.join(user_processed_folder, json_files[0])
+                    with open(recent_file, 'r') as f:
+                        parsed_data = json.load(f)
+                        if isinstance(parsed_data, dict) and '_metadata' in parsed_data:
+                            metadata = parsed_data['_metadata']
+                            actual_filters = metadata.get('filterSettings', {})
+                            date_range = metadata.get('dateRange', {})
+    
+    except Exception as e:
+        print(f"Could not extract filter settings: {e}")
+        
+    # DEBUG: Let's see what we actually have
+    print(f"DEBUG: actual_filters = {actual_filters}")
+    print(f"DEBUG: date_range = {date_range}")
+    print(f"DEBUG: progress_data keys = {list(progress_data.keys())}")
+    if progress_data.get('parsed_data'):
+        print(f"DEBUG: parsed_data exists and type = {type(progress_data['parsed_data'])}")
+    if progress_data.get('parsed_file'):
+        print(f"DEBUG: parsed_file = {progress_data['parsed_file']}")
+    
+    return render_template('results.html',
+                         task_id=task_id,
+                         progress_data=progress_data,
+                         files_info=files_info,
+                         actual_filters=actual_filters,
+                         date_range=date_range)
+
     return render_template('results.html',
                          task_id=task_id,
                          progress_data=progress_data,

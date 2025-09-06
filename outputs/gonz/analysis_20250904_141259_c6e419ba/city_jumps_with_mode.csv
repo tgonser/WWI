@@ -1,0 +1,42 @@
+Date,From,To,Mode,Distance (mi)
+2024-11-02 03:33,"Kahului, United States","None, None",Flight,1156.56
+2024-11-02 06:58,"None, None","Seatac, United States",Flight,1484.13
+2024-11-05 18:05,"Seattle, United States","Lewis, United States",Car,59.8
+2024-11-05 19:05,"Lewis, United States","Fairfield, United States",Flight,413.74
+2024-11-05 19:08,"Fairfield, United States","Camas, United States",Car,13.08
+2024-11-05 19:29,"Camas, United States","Hailey, United States",Car,22.12
+2024-11-08 11:01,"Blaine County, United States","Mercer Island, United States",Flight,473.02
+2024-11-08 21:20,"Seatac, United States","Palo Alto, United States",Flight,692.12
+2024-11-10 01:51,"South San Francisco, United States","Newport Beach, United States",Flight,375.13
+2024-11-11 20:25,"Santa Ana, United States","Mercer Island, United States",Flight,988.16
+2024-11-13 17:15,"SeaTac, United States","None, United States of America",Flight,2654.95
+2024-11-13 17:28,"None, United States of America","Seatac, United States",Flight,2655.68
+2024-11-13 22:58,"Federal Way, United States","Pauwela, United States",Flight,2629.45
+2024-11-13 23:03,"Pauwela, United States","Maui, United States",Car,24.14
+2024-11-21 06:51,"Kahului, United States","Seatac, United States",Flight,2639.84
+2024-11-21 13:58,"Mercer Island, United States","Olympia, United States",Car,46.49
+2024-11-21 19:59,"Olympia, United States","Lakewood, United States",Car,19.73
+2024-11-21 20:32,"Olympia, United States","Tacoma, United States",Car,14.0
+2024-11-21 20:46,"Tacoma, United States","Federal Way, United States",Car,12.48
+2024-11-21 20:57,"Federal Way, United States","Seattle, United States",Car,12.69
+2024-12-03 00:06,"Seatac, United States","Maui County, United States",Flight,2640.58
+2024-12-08 00:24,"Kahului, United States","Kihei, United States",Car,12.53
+2024-12-18 02:04,"Maui County, United States","None, None",Flight,812.34
+2024-12-18 02:09,"None, None","Lower Paia, United States",Flight,809.73
+2024-12-18 03:27,"Lower Paia, United States","None, None",Flight,680.44
+2024-12-18 07:35,"None, None","SeaTac, United States",Flight,1813.34
+2024-12-18 16:35,"Mercer Island, United States","Everett, United States",Car,24.57
+2024-12-18 16:42,"Everett, United States","Seattle, United States",Car,24.88
+2024-12-18 20:14,"Quil Ceda Village, United States","Seattle, United States",Car,27.38
+2024-12-18 20:23,"Seattle, United States","Everett, United States",Car,21.12
+2024-12-18 20:32,"Everett, United States","Lynnwood, United States",Car,10.06
+2024-12-19 22:18,"Bothell, United States","Tukwila, United States",Car,22.57
+2024-12-19 22:33,"Tukwila, United States","Kirkland, United States",Car,17.3
+2024-12-20 00:21,"Kent, United States","Seattle, United States",Car,11.33
+2024-12-20 00:26,"Seattle, United States","Seatac, United States",Car,10.1
+2024-12-20 19:49,"Seattle, United States","Bend, United States",Flight,243.83
+2024-12-28 17:09,"Bend, United States","Harney County, United States",Flight,122.23
+2024-12-28 17:20,"Harney County, United States","Nampa, United States",Flight,111.87
+2024-12-28 17:25,"Nampa, United States","Mountain Home, United States",Car,55.3
+2024-12-28 17:28,"Mountain Home, United States","Camas County, United States",Car,23.28
+2024-12-29 03:39,"Camas County, United States","Sun Valley, United States",Car,37.87

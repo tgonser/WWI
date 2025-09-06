@@ -1,0 +1,15 @@
+LOCATION ANALYSIS SUMMARY
+==================================================
+
+Analysis Period: 2024-02-01 to 2024-03-01
+Total Objects Processed: 18
+Activities: 7
+Visits: 6
+Timeline Paths: 5
+Other Objects: 0
+Location Points Extracted: 34
+Significant Points: 23
+Total Distance Traveled: 0.00 miles
+Total Location Jumps: 0
+Cities Visited: 3
+States/Countries Visited: 1

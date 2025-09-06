@@ -1,0 +1,15 @@
+LOCATION ANALYSIS SUMMARY
+==================================================
+
+Analysis Period: 2018-04-01 to 2018-05-01
+Total Objects Processed: 484
+Activities: 130
+Visits: 177
+Timeline Paths: 177
+Other Objects: 0
+Location Points Extracted: 893
+Significant Points: 646
+Total Distance Traveled: 4330.36 miles
+Total Location Jumps: 37
+Cities Visited: 71
+States/Countries Visited: 7

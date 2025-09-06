@@ -1,0 +1,63 @@
+Date,From,To,Mode,Distance (mi)
+2018-05-02 17:23,"Town of St. George, Bermuda","Royal Naval Dockyard, Bermuda",Car,10.55
+2018-05-03 21:18,"None, Bermuda","Atlanta, United States",Flight,1143.1
+2018-05-04 01:02,"Atlanta, United States","Indianapolis, United States",Flight,424.73
+2018-05-07 01:02,"Indianapolis, United States","San Francisco, United States",Flight,1938.66
+2018-05-07 02:53,"San Francisco, United States","Sausalito, United States",Car,16.38
+2018-05-07 03:03,"Sausalito, United States","Esparto, United States",Car,63.21
+2018-05-07 03:17,"Esparto, United States","Tehama County, United States",Flight,101.66
+2018-05-07 03:23,"Tehama County, United States","Shasta County, United States",Car,46.27
+2018-05-07 03:33,"Shasta County, United States","Siskiyou County, United States",Car,70.99
+2018-05-07 03:55,"Siskiyou County, United States","Sunriver, United States",Flight,141.09
+2018-05-07 04:03,"Sunriver, United States","Bend, United States",Car,18.41
+2018-05-07 22:39,"Sisters, United States","Linn County, United States",Car,10.26
+2018-05-07 22:51,"Linn County, United States","Idanha, United States",Car,12.66
+2018-05-07 23:08,"Idanha, United States","Detroit, United States",Car,12.82
+2018-05-07 23:37,"Marion County, United States","Mehama, United States",Car,16.71
+2018-05-07 23:53,"Mehama, United States","Marion County, United States",Car,16.24
+2018-05-08 00:48,"Salem, United States","Grand Ronde, United States",Car,25.77
+2018-05-09 16:19,"Depoe Bay, United States","Newport, United States",Car,11.39
+2018-05-09 17:02,"Toledo, United States","Lincoln County, United States",Car,11.52
+2018-05-09 17:13,"Lincoln County, United States","Blodgett, United States",Car,10.49
+2018-05-09 17:44,"Corvallis, United States","Lebanon, United States",Car,17.46
+2018-05-09 18:37,"Sweet Home, United States","Cascadia, United States",Car,13.03
+2018-05-09 19:00,"Cascadia, United States","Linn County, United States",Car,10.1
+2018-05-09 19:12,"Linn County, United States","Deschutes County, United States",Car,39.96
+2018-05-09 19:21,"Deschutes County, United States","Jefferson County, United States",Car,37.69
+2018-05-09 19:48,"Jefferson County, United States","Sisters, United States",Car,22.29
+2018-05-09 23:30,"Redmond, United States","Petaluma, United States",Flight,423.11
+2018-05-10 00:00,"Petaluma, United States","San Francisco, United States",Car,44.65
+2018-05-10 01:27,"Oakland, United States","Walnut Creek, United States",Car,14.85
+2018-05-11 03:34,"San Francisco, United States","Burlingame, United States",Car,12.47
+2018-05-11 03:57,"Burlingame, United States","Hayward, United States",Car,13.68
+2018-05-11 04:13,"San Lorenzo, United States","Dublin, United States",Car,10.52
+2018-05-11 17:25,"Alamo, United States","Dublin, United States",Car,10.29
+2018-05-11 17:55,"San Leandro, United States","Foster City, United States",Car,11.51
+2018-05-11 21:37,"Millbrae, United States","Bend, United States",Flight,451.42
+2018-05-11 21:52,"Bend, United States","Redmond, United States",Car,13.2
+2018-05-17 01:27,"Redmond, United States","Bend, United States",Car,10.4
+2018-05-17 16:41,"Bend, United States","La Pine, United States",Car,17.41
+2018-05-17 17:00,"La Pine, United States","Gilchrist, United States",Car,14.64
+2018-05-17 17:20,"Gilchrist, United States","Klamath County, United States",Car,19.86
+2018-05-17 18:15,"Klamath County, United States","Modoc Point, United States",Car,14.89
+2018-05-17 19:39,"Midland, United States","Dorris, United States",Car,13.54
+2018-05-17 19:56,"Dorris, United States","Macdoel, United States",Car,15.64
+2018-05-17 20:12,"Siskiyou County, United States","Cougar, United States",Car,10.41
+2018-05-17 20:30,"Cougar, United States","Weed, United States",Car,14.87
+2018-05-17 20:48,"Weed, United States","Castella, United States",Car,18.4
+2018-05-17 21:04,"Castella, United States","Lakehead, United States",Car,15.9
+2018-05-17 21:39,"Lakehead, United States","Redding, United States",Car,20.01
+2018-05-17 21:59,"Redding, United States","Tehama County, United States",Car,24.0
+2018-05-17 22:20,"Red Bluff, United States","Glenn County, United States",Car,25.73
+2018-05-17 22:45,"Glenn County, United States","Maxwell, United States",Car,33.28
+2018-05-17 23:02,"Maxwell, United States","Arbuckle, United States",Car,22.31
+2018-05-17 23:19,"Arbuckle, United States","Yolo County, United States",Car,21.89
+2018-05-17 23:36,"Yolo County, United States","Vacaville, United States",Car,23.43
+2018-05-17 23:49,"Vacaville, United States","Fairfield, United States",Car,14.48
+2018-05-17 23:59,"Fairfield, United States","Martinez, United States",Car,11.15
+2018-05-20 22:26,"South San Francisco, United States","Kihei, United States",Flight,2343.5
+2018-05-20 22:40,"Kihei, United States","Maui County, United States",Car,12.3
+2018-05-23 21:18,"Kihei, United States","Kula, United States",Car,11.06
+2018-05-23 22:52,"Kula, United States","Wailea, United States",Car,10.83
+2018-05-30 01:18,"Maui County, United States","None, None",Car,31.34
+2018-05-30 06:26,"None, None","Burien, United States",Flight,1591.7

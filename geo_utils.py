@@ -21,6 +21,13 @@ if os.path.exists(cache_file):
     except Exception as e:
         print(f"⚠️ Failed to load config/geo_cache.json: {e}")
 
+class APIError(Exception):
+    """Custom exception for API errors that should stop processing"""
+    def __init__(self, message, status_code=None, should_stop=False):
+        super().__init__(message)
+        self.status_code = status_code
+        self.should_stop = should_stop
+
 class GeocodingStats:
     """Thread-safe class to track geocoding statistics"""
     
@@ -39,6 +46,8 @@ class GeocodingStats:
             self.water_errors = 0
             self.batch_requests = 0
             self.total_coordinates_in_batches = 0
+            self.api_failures = 0
+            self.successful_geocodes = 0
     
     def record_cache_hit(self, is_water=False):
         """Record a cache hit"""
@@ -56,12 +65,16 @@ class GeocodingStats:
             else:
                 self.api_calls += coordinates_count
     
+    def record_successful_geocode(self):
+        """Record a successful geocode"""
+        with self.lock:
+            self.successful_geocodes += 1
+    
     def record_batch_request(self, coordinates_count):
         """Record a batch API request"""
         with self.lock:
             self.batch_requests += 1
             self.total_coordinates_in_batches += coordinates_count
-            self.api_calls += coordinates_count
     
     def record_error(self, is_water=False):
         """Record an error"""
@@ -71,6 +84,11 @@ class GeocodingStats:
             else:
                 self.errors += 1
     
+    def record_api_failure(self):
+        """Record an API failure that should stop processing"""
+        with self.lock:
+            self.api_failures += 1
+    
     def get_stats(self):
         """Get current statistics"""
         with self.lock:
@@ -78,7 +96,9 @@ class GeocodingStats:
                 'geocoding': {
                     'cache_hits': self.cache_hits,
                     'api_calls': self.api_calls,
+                    'successful_geocodes': self.successful_geocodes,
                     'errors': self.errors,
+                    'api_failures': self.api_failures,
                     'total': self.cache_hits + self.api_calls + self.errors,
                     'batch_requests': self.batch_requests,
                     'avg_batch_size': self.total_coordinates_in_batches / max(1, self.batch_requests)
@@ -105,10 +125,13 @@ class GeocodingStats:
                 avg_batch = stats['geocoding']['avg_batch_size']
                 batch_info = f" ({stats['geocoding']['batch_requests']} batch requests, avg {avg_batch:.1f} coords/batch)"
             
-            messages.append(f"Geocoded {geo_total} locations: {stats['geocoding']['cache_hits']} from cache, {stats['geocoding']['api_calls']} from API lookups{batch_info}")
+            messages.append(f"Geocoded {geo_total} locations: {stats['geocoding']['cache_hits']} from cache, {stats['geocoding']['successful_geocodes']} from API lookups{batch_info}")
             
             if stats['geocoding']['errors'] > 0:
                 messages.append(f"Geocoding errors: {stats['geocoding']['errors']}")
+            
+            if stats['geocoding']['api_failures'] > 0:
+                messages.append(f"⚠️ API failures: {stats['geocoding']['api_failures']}")
         
         if water_total > 0:
             messages.append(f"Water detection for {water_total} locations: {stats['water_detection']['cache_hits']} from cache, {stats['water_detection']['api_calls']} from API calls")
@@ -136,11 +159,138 @@ def save_geo_cache():
     except Exception as e:
         print(f"⚠️ Failed to save config/geo_cache.json: {e}")
 
+def check_api_response(response_status, lat=None, lon=None, service="Geoapify"):
+    """
+    Check API response status and handle errors appropriately
+    Returns True if successful, raises APIError for failures that should stop processing
+    """
+    if response_status == 200:
+        return True
+    elif response_status == 202:
+        # Accepted but data not returned yet (batch processing)
+        return True
+    elif response_status == 400:
+        raise APIError(f"{service} API error 400: Bad request - check coordinates format", 
+                      response_status, should_stop=True)
+    elif response_status == 401:
+        raise APIError(f"{service} API error 401: Unauthorized - invalid API key", 
+                      response_status, should_stop=True)
+    elif response_status == 403:
+        raise APIError(f"{service} API error 403: Forbidden - check API key permissions", 
+                      response_status, should_stop=True)
+    elif response_status == 404:
+        raise APIError(f"{service} API error 404: Not found", 
+                      response_status, should_stop=False)
+    elif response_status == 429:
+        raise APIError(f"{service} API error 429: Rate limit exceeded - too many requests", 
+                      response_status, should_stop=False)
+    elif response_status >= 500:
+        raise APIError(f"{service} server error {response_status} - service temporarily unavailable", 
+                      response_status, should_stop=False)
+    else:
+        raise APIError(f"{service} unexpected response code {response_status}", 
+                      response_status, should_stop=False)
+
+def process_geocoding_result(feature_collection):
+    """Process a single geocoding result from Geoapify"""
+    features = feature_collection.get("features", []) if feature_collection else []
+    
+    if features:
+        props = features[0].get("properties", {})
+        place_name = props.get("name", "").lower()
+        result = {
+            "state": props.get("state"),
+            "city": props.get("city", props.get("county")),
+            "country": props.get("country"),
+            "place": place_name,
+            "is_water": (props.get("category") == "natural" and props.get("class") == "water") or
+                       any(w in place_name for w in ["waters", "sea", "ocean", "bay", "channel"])
+        }
+    else:
+        result = {"is_water": True, "place": "open water", "city": "Unknown", "state": "", "country": ""}
+    
+    return result
+
+async def single_reverse_geocode_fixed(lat: float, lon: float, geoapify_key: str, google_key: str, 
+                                     session: aiohttp.ClientSession, stats=None, log_func=None):
+    """Improved single coordinate geocoding with better error handling"""
+    if stats is None:
+        stats = _global_stats
+    
+    key = f"{round(lat, 5)},{round(lon, 5)}"
+    
+    # Double-check cache
+    if key in geo_cache:
+        stats.record_cache_hit()
+        return geo_cache[key]
+    
+    try:
+        if geoapify_key:
+            url = f"https://api.geoapify.com/v1/geocode/reverse"
+            params = {"lat": lat, "lon": lon, "apiKey": geoapify_key, "format": "geojson"}
+            
+            async with session.get(url, params=params, timeout=10) as response:
+                # Check API response status properly
+                try:
+                    check_api_response(response.status, lat, lon, "Geoapify")
+                except APIError as e:
+                    if e.should_stop:
+                        if log_func:
+                            log_func(f"❌ {e}")
+                        stats.record_api_failure()
+                        raise  # Re-raise to stop processing
+                    else:
+                        if log_func:
+                            log_func(f"⚠️ API error {e.status_code} for ({lat:.3f}, {lon:.3f})")
+                        stats.record_error()
+                        result = {"is_water": True, "place": f"api error {e.status_code}", 
+                                "city": "Unknown", "state": "", "country": ""}
+                        geo_cache[key] = result
+                        return result
+                
+                if response.status == 200:
+                    data = await response.json()
+                    result = process_geocoding_result(data)
+                    stats.record_api_call()
+                    stats.record_successful_geocode()
+                    geo_cache[key] = result
+                    return result
+                elif response.status == 429:
+                    # Rate limited - wait and retry once
+                    if log_func:
+                        log_func(f"⚠️ Rate limited, retrying in 1 second...")
+                    await asyncio.sleep(1)
+                    return await single_reverse_geocode_fixed(lat, lon, geoapify_key, google_key, 
+                                                            session, stats, log_func)
+        
+        # Fallback result
+        stats.record_error()
+        result = {"is_water": True, "place": "geocoding failed", "city": "Unknown", "state": "", "country": ""}
+        geo_cache[key] = result
+        return result
+        
+    except APIError:
+        raise  # Re-raise API errors that should stop processing
+    except asyncio.TimeoutError:
+        if log_func:
+            log_func(f"⚠️ Timeout for ({lat:.3f}, {lon:.3f})")
+        stats.record_error()
+        result = {"is_water": True, "place": "timeout", "city": "Unknown", "state": "", "country": ""}
+        geo_cache[key] = result
+        return result
+    except Exception as e:
+        if log_func:
+            log_func(f"⚠️ Error for ({lat:.3f}, {lon:.3f}): {str(e)}")
+        stats.record_error()
+        result = {"is_water": True, "place": f"error: {str(e)}", "city": "Unknown", "state": "", "country": ""}
+        geo_cache[key] = result
+        return result
+
 async def batch_reverse_geocode(coordinates: List[Tuple[float, float]], geoapify_key: str, 
-                              google_key: str = "", batch_size: int = 50, 
+                              google_key: str = "", batch_size: int = 25, 
                               log_func=None, stats=None):
     """
-    Fixed batch geocoding using proper Geoapify batch API format
+    Batch geocoding using parallel individual requests (reliable method)
     """
     if stats is None:
         stats = _global_stats
@@ -171,18 +321,20 @@ async def batch_reverse_geocode(coordinates: List[Tuple[float, float]], geoapify
             log_func("All coordinates found in cache, no API calls needed")
         return results
     
-    # Process in smaller batches to avoid API limits
-    batch_size = min(batch_size, 25)  # Increased to 25 for better performance
+    # Process in batches with parallel requests (not true batch API, but parallel individual calls)
+    batch_size = min(batch_size, 25)
     batches = [uncached_coords[i:i + batch_size] 
                for i in range(0, len(uncached_coords), batch_size)]
+    
+    successful_geocodes = 0
+    total_errors = 0
     
     async with aiohttp.ClientSession() as session:
         for batch_num, batch in enumerate(batches):
             if log_func:
                 log_func(f"Processing batch {batch_num + 1}/{len(batches)} ({len(batch)} coordinates)")
             
-            # Try individual requests in parallel for this batch instead of batch API
-            # This avoids the batch API format issues while still being faster than serial
+            # Process this batch in parallel
             batch_tasks = []
             for lat, lon in batch:
                 task = single_reverse_geocode_fixed(lat, lon, geoapify_key, google_key, session, stats, log_func)
@@ -191,110 +343,69 @@ async def batch_reverse_geocode(coordinates: List[Tuple[float, float]], geoapify
             try:
                 batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
                 
+                batch_success = 0
+                batch_errors = 0
+                
                 for i, result in enumerate(batch_results):
                     if isinstance(result, Exception):
-                        if log_func:
-                            log_func(f"Geocoding error for {batch[i]}: {result}")
-                        stats.record_error()
-                        results[batch[i]] = {"is_water": True, "place": "geocoding failed"}
+                        if isinstance(result, APIError) and result.should_stop:
+                            # Critical error that should stop processing
+                            if log_func:
+                                log_func(f"❌ Critical API error: {result}")
+                            raise result
+                        else:
+                            # Non-critical error, continue
+                            if log_func:
+                                log_func(f"⚠️ Error for {batch[i]}: {result}")
+                            stats.record_error()
+                            results[batch[i]] = {"is_water": True, "place": "geocoding failed"}
+                            batch_errors += 1
                     else:
                         results[batch[i]] = result
+                        if not result.get("place", "").startswith("error:") and not result.get("place") == "geocoding failed":
+                            batch_success += 1
+                        else:
+                            batch_errors += 1
                 
-                # Small delay between batches
+                successful_geocodes += batch_success
+                total_errors += batch_errors
+                
+                stats.record_batch_request(len(batch))
+                
+                if log_func:
+                    if batch_success > 0:
+                        log_func(f"✅ Batch {batch_num + 1} completed: {batch_success} successful, {batch_errors} errors")
+                    else:
+                        log_func(f"⚠️ Batch {batch_num + 1} completed: {batch_success} successful, {batch_errors} errors")
+                
+                # Small delay between batches to be respectful to API
                 await asyncio.sleep(0.2)
                 
+            except APIError:
+                raise  # Re-raise API errors that should stop processing
             except Exception as e:
                 if log_func:
-                    log_func(f"Batch processing error: {e}")
+                    log_func(f"❌ Batch processing error: {e}")
                 
-                # Fallback for failed batch
+                # Fallback for failed batch - mark all as errors
                 for lat, lon in batch:
-                    try:
-                        individual_result = await single_reverse_geocode_fixed(lat, lon, geoapify_key, google_key, session, stats, log_func)
-                        results[(lat, lon)] = individual_result
-                    except Exception as individual_error:
-                        if log_func:
-                            log_func(f"Individual geocoding failed for ({lat}, {lon}): {individual_error}")
-                        stats.record_error()
-                        results[(lat, lon)] = {"is_water": True, "place": "geocoding failed"}
+                    stats.record_error()
+                    results[(lat, lon)] = {"is_water": True, "place": "batch processing failed"}
+                    total_errors += 1
+    
+    # Final summary
+    if log_func:
+        log_func(f"Batch geocoding completed: {successful_geocodes} successful, {total_errors} errors out of {len(uncached_coords)} coordinates")
     
     # Save cache after processing
     save_geo_cache()
     
     return results
 
-async def single_reverse_geocode_fixed(lat: float, lon: float, geoapify_key: str, google_key: str, 
-                                     session: aiohttp.ClientSession, stats=None, log_func=None):
-    """Improved single coordinate geocoding with better error handling"""
-    if stats is None:
-        stats = _global_stats
-    
-    key = f"{round(lat, 5)},{round(lon, 5)}"
-    
-    # Double-check cache (in case it was added by another concurrent request)
-    if key in geo_cache:
-        stats.record_cache_hit()
-        return geo_cache[key]
-    
-    try:
-        # Try Geoapify first with proper error handling
-        if geoapify_key:
-            url = f"https://api.geoapify.com/v1/geocode/reverse"
-            params = {"lat": lat, "lon": lon, "apiKey": geoapify_key, "format": "geojson"}
-            
-            async with session.get(url, params=params, timeout=10) as response:
-                # NEW: Log API response status for debugging
-                if log_func:
-                    log_func(f"API Response: {response.status} for ({lat:.3f}, {lon:.3f})")
-                if response.status == 200:
-                    data = await response.json()
-                    features = data.get("features", [])
-                    
-                    if features:
-                        props = features[0].get("properties", {})
-                        place_name = props.get("name", "").lower()
-                        result = {
-                            "state": props.get("state"),
-                            "city": props.get("city", props.get("county")),
-                            "country": props.get("country"),
-                            "place": place_name,
-                            "is_water": (props.get("category") == "natural" and props.get("class") == "water") or
-                                       any(w in place_name for w in ["waters", "sea", "ocean", "bay", "channel"])
-                        }
-                    else:
-                        result = {"is_water": True, "place": "open water", "city": "Unknown", "state": "", "country": ""}
-                    
-                    stats.record_api_call()
-                    geo_cache[key] = result
-                    return result
-                elif response.status == 429:
-                    # Rate limited - wait and retry once
-                    await asyncio.sleep(1)
-                    return await single_reverse_geocode_fixed(lat, lon, geoapify_key, google_key, session, stats, log_func)
-                else:
-                    if log_func:
-                        log_func(f"Geoapify API error {response.status} for ({lat:.5f}, {lon:.5f})")
-        
-        # Fallback to error result
-        stats.record_error()
-        result = {"is_water": True, "place": "geocoding failed", "city": "Unknown", "state": "", "country": ""}
-        geo_cache[key] = result
-        return result
-        
-    except asyncio.TimeoutError:
-        stats.record_error()
-        result = {"is_water": True, "place": "timeout", "city": "Unknown", "state": "", "country": ""}
-        geo_cache[key] = result
-        return result
-    except Exception as e:
-        stats.record_error()
-        result = {"is_water": True, "place": f"error: {str(e)}", "city": "Unknown", "state": "", "country": ""}
-        geo_cache[key] = result
-        return result
 def reverse_geocode(lat, lon, geoapify_key, google_key, delay=0.5, log_func=None, stats=None):
     """
     Synchronous wrapper for backward compatibility
-    For new code, use batch_reverse_geocode for better performance
+    Now with improved error handling
     """
     if stats is None:
         stats = _global_stats
@@ -305,19 +416,11 @@ def reverse_geocode(lat, lon, geoapify_key, google_key, delay=0.5, log_func=None
     # Check cache first
     if key in geo_cache:
         stats.record_cache_hit()
-        if log_func:
-            log_func(f"🗂 HIT: ({lat:.5f}, {lon:.5f}) => {geo_cache[key]}")
         return geo_cache[key]
     
     if key_fallback in geo_cache:
         stats.record_cache_hit()
-        if log_func:
-            log_func(f"🗂 HIT (fallback): ({lat:.5f}, {lon:.5f}) => {geo_cache[key_fallback]}")
         return geo_cache[key_fallback]
-
-    # Cache miss - make single API call
-    if log_func:
-        log_func(f"🌐 MISS: ({lat:.5f}, {lon:.5f}) → API call")
 
     result = {}
     api_call_made = False
@@ -327,26 +430,31 @@ def reverse_geocode(lat, lon, geoapify_key, google_key, delay=0.5, log_func=None
         url = f"https://api.geoapify.com/v1/geocode/reverse?lat={lat}&lon={lon}&apiKey={geoapify_key}"
         try:
             response = requests.get(url)
-            if log_func:
-                log_func(f"API Response: {response.status_code} for ({lat:.3f}, {lon:.3f})")
-            response.raise_for_status()
             
-            api_call_made = True
-            data = response.json()
-            features = data.get("features", [])
-            if features:
-                props = features[0].get("properties", {})
-                place_name = props.get("name", "").lower()
-                result = {
-                    "state": props.get("state"),
-                    "city": props.get("city", props.get("county")),
-                    "country": props.get("country"),
-                    "place": place_name,
-                    "is_water": (props.get("category") == "natural" and props.get("class") == "water") or
-                                any(w in place_name for w in ["waters", "sea", "ocean", "bay", "channel"])
-                }
-            else:
-                result = {"is_water": True, "place": "open water"}
+            # Check response status
+            try:
+                check_api_response(response.status_code, lat, lon, "Geoapify")
+            except APIError as e:
+                if e.should_stop:
+                    if log_func:
+                        log_func(f"❌ {e} - Processing stopped.")
+                    stats.record_api_failure()
+                    raise  # Re-raise to stop processing
+                else:
+                    if log_func:
+                        log_func(f"⚠️ {e}")
+                    stats.record_error()
+                    result = {"is_water": True, "place": f"api error {e.status_code}"}
+            
+            if response.status_code == 200:
+                api_call_made = True
+                data = response.json()
+                result = process_geocoding_result(data)
+                if is_meaningful_geocoding_result(result):
+                    stats.record_successful_geocode()
+            
+        except APIError:
+            raise  # Re-raise API errors that should stop processing
         except Exception as e:
             stats.record_error()
             if log_func:
@@ -368,7 +476,7 @@ def reverse_geocode(lat, lon, geoapify_key, google_key, delay=0.5, log_func=None
 
     return result
 
-# Keep existing water detection and utility functions unchanged
+# Keep existing utility functions
 def is_over_water(lat, lon, onwater_key, delay=0.5, log_func=None, geoapify_key="", google_key="", stats=None):
     """Water detection (unchanged from original)"""
     if stats is None:
@@ -380,28 +488,20 @@ def is_over_water(lat, lon, onwater_key, delay=0.5, log_func=None, geoapify_key=
     # Check cache first
     if key in geo_cache:
         stats.record_cache_hit(is_water=True)
-        if log_func:
-            log_func(f"🌊 HIT: ({lat:.5f}, {lon:.5f}) => {'Water' if geo_cache[key] else 'Land'}")
         return geo_cache[key]
     
     if key_fallback in geo_cache:
         stats.record_cache_hit(is_water=True)
-        if log_func:
-            log_func(f"🌊 HIT (fallback): ({lat:.5f}, {lon:.5f}) => {'Water' if geo_cache[key_fallback] else 'Land'}")
         return geo_cache[key_fallback]
 
     # Use regular geocoding as fallback
     if not onwater_key:
-        if log_func:
-            log_func("⚠️ OnWater API key missing; falling back to Geoapify/Google.")
         result = reverse_geocode(lat, lon, geoapify_key, google_key, delay, log_func, stats)
         is_water = result.get("is_water", False)
         geo_cache[key] = is_water
         save_geo_cache()
         return is_water
 
-    # OnWater API logic remains the same...
-    # (keeping original implementation)
     return False  # Simplified for brevity
 
 def haversine_distance(lat1, lon1, lat2, lon2):

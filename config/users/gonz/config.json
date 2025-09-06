@@ -1,7 +1,7 @@
 {
-  "distance_threshold": 2345.0,
-  "probability_threshold": 0.5,
-  "duration_threshold": 1600,
-  "last_start_date": "2022-01-01",
-  "last_end_date": "2022-02-01"
+  "distance_threshold": 1234.0,
+  "probability_threshold": 0.2,
+  "duration_threshold": 1567,
+  "last_start_date": "2024-01-01",
+  "last_end_date": "2024-02-01"
 }

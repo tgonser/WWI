@@ -32,8 +32,16 @@ def process_location_file(file_path, start_date, end_date, output_dir, group_by,
             geoapify_key, google_key, delay, log_func, cancel_check
         ))
     except Exception as e:
-        log_func(f"Analysis failed: {str(e)}")
-        return None
+            log_func(f"Analysis failed: {str(e)}")
+            
+            # Re-raise critical API errors so they reach the UI error handler
+            if any(indicator in str(e).lower() for indicator in [
+                'api key', 'unauthorized', 'forbidden', 'geocoding failed catastrophically',
+                'invalid api key', 'api error 401', 'api error 403'
+            ]):
+                raise  # Re-raise the exception to reach the UI error handler
+            
+            return None  # Return None for non-critical errors
 
 
 async def run_modern_analysis(file_path, start_date, end_date, output_dir, group_by,
