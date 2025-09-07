@@ -2680,7 +2680,11 @@ def download_processed_file(username, filename):
 
 
 if __name__ == '__main__':
-    print("UNIFIED LOCATION PROCESSOR v1.0")
+    #FOR RAILWAY 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+    print("WHERE WAS i v1.0")
     print("=" * 50)
     print("SETUP CHECK:")
     if ANALYZER_AVAILABLE:
@@ -2712,4 +2716,5 @@ if __name__ == '__main__':
         print("Copy the required files to enable full geocoding analysis")
         print("=" * 50)
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    if __name__ == '__main__':
+        app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)

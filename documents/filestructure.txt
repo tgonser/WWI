@@ -316,70 +316,14 @@ C:\USERS\TOM\PROGRAMMING\UAPP3
 ¦   ¦       
 ¦   +---gonz
 ¦   ¦   +---analysis_20250903_095651_fefb6d90
-¦   ¦   ¦       analysis_summary.txt
-¦   ¦   ¦       by_city_location_days.csv
-¦   ¦   ¦       by_city_location_days.html
-¦   ¦   ¦       by_state_location_days.csv
-¦   ¦   ¦       by_state_location_days.html
-¦   ¦   ¦       city_jumps_with_mode.csv
-¦   ¦   ¦       city_jumps_with_mode.html
-¦   ¦   ¦       
-¦   ¦   +---analysis_20250903_112838_5c64d1d6
-¦   ¦   +---analysis_20250903_135744_4b5a4ba3
-¦   ¦   ¦       analysis_summary.txt
-¦   ¦   ¦       by_city_location_days.csv
-¦   ¦   ¦       by_city_location_days.html
-¦   ¦   ¦       by_state_location_days.csv
-¦   ¦   ¦       by_state_location_days.html
-¦   ¦   ¦       city_jumps_with_mode.csv
-¦   ¦   ¦       city_jumps_with_mode.html
-¦   ¦   ¦       
-¦   ¦   +---analysis_20250903_162202_30c9295f
-¦   ¦   ¦       analysis_summary.txt
-¦   ¦   ¦       by_city_location_days.csv
-¦   ¦   ¦       by_city_location_days.html
-¦   ¦   ¦       by_state_location_days.csv
-¦   ¦   ¦       by_state_location_days.html
-¦   ¦   ¦       city_jumps_with_mode.csv
-¦   ¦   ¦       city_jumps_with_mode.html
-¦   ¦   ¦       
-¦   ¦   +---analysis_20250903_162259_eadd99b8
-¦   ¦   ¦       analysis_summary.txt
-¦   ¦   ¦       by_city_location_days.csv
-¦   ¦   ¦       by_city_location_days.html
-¦   ¦   ¦       by_state_location_days.csv
-¦   ¦   ¦       by_state_location_days.html
-¦   ¦   ¦       city_jumps_with_mode.csv
-¦   ¦   ¦       city_jumps_with_mode.html
-¦   ¦   ¦       
-¦   ¦   +---analysis_20250904_104141_61d1704d
-¦   ¦           analysis_summary.txt
-¦   ¦           by_city_location_days.csv
-¦   ¦           by_city_location_days.html
-¦   ¦           by_state_location_days.csv
-¦   ¦           by_state_location_days.html
-¦   ¦           city_jumps_with_mode.csv
-¦   ¦           city_jumps_with_mode.html
 ¦   ¦           
 ¦   +---tom
 ¦       +---analysis_20250904_080505_76e62d37
-¦               analysis_summary.txt
-¦               by_city_location_days.csv
-¦               by_city_location_days.html
-¦               by_state_location_days.csv
-¦               by_state_location_days.html
-¦               city_jumps_with_mode.csv
-¦               city_jumps_with_mode.html
 ¦               
 +---processed
-¦   ¦   01-02-22__03-01-22_parsed_2000_0.5_2000.json
-¦   ¦   01-02-25__09-01-25_parsed_2000_0.5_2000.json
-¦   ¦   1-1-2021--6_1_2021.json
 ¦   ¦   
 ¦   +---gonz
 ¦   ¦       01-02-22__04-01-22_parsed_2000_0.5_2000.json
-¦   ¦       01-02-25__09-01-25_parsed_2000_0.5_2000.json
-¦   ¦       02-02-23__03-02-23_parsed_2000_0.5_2000.json
 ¦   ¦       
 ¦   +---tom
 ¦           11-01-24__01-04-25_parsed_2000_0.1_600.json
@@ -402,13 +346,4 @@ C:\USERS\TOM\PROGRAMMING\UAPP3
 +---uploads
 ¦   +---gonz
 ¦   +---tom
-+---__pycache__
-        analyzer_bridge.cpython-313.pyc
-        csv_exporter.cpython-313.pyc
-        geo_utils.cpython-313.pyc
-        legacy_analyzer.cpython-313.pyc
-        location_analyzer.cpython-313.pyc
-        modern_analyzer_bridge.cpython-313.pyc
-        parser_app.cpython-313.pyc
-        unified_app.cpython-313.pyc
         
