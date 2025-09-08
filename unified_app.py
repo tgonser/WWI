@@ -1028,6 +1028,246 @@ def register():
     
     return render_template('register.html')
 
+# New approutes for filesystem storage
+@app.route('/delete_files', methods=['POST'])
+@require_login
+def delete_files():
+    """Delete selected files from user's folders"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.get_json()
+    filenames = data.get('filenames', [])
+    file_type = data.get('type', 'processed')  # 'processed' or 'master'
+    
+    if not filenames:
+        return jsonify({'error': 'No files specified'}), 400
+    
+    username = session['user']
+    deleted_files = []
+    errors = []
+    
+    try:
+        if file_type == 'processed':
+            folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+        else:
+            folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+        
+        for filename in filenames:
+            # Security check - ensure filename doesn't contain path traversal
+            if '..' in filename or '/' in filename or '\\' in filename:
+                errors.append(f"Invalid filename: {filename}")
+                continue
+            
+            file_path = os.path.join(folder, filename)
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                deleted_files.append(filename)
+            else:
+                errors.append(f"File not found: {filename}")
+    
+    except Exception as e:
+        return jsonify({'error': f'Delete operation failed: {str(e)}'}), 500
+    
+    return jsonify({
+        'deleted_files': deleted_files,
+        'errors': errors,
+        'message': f'Successfully deleted {len(deleted_files)} file(s)'
+    })
+
+@app.route('/load_master_for_parsing/<filename>')
+@require_login  
+def load_master_for_parsing(filename):
+    """Load a master file into the parsing interface"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    username = session['user']
+    
+    # Security check
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    file_path = os.path.join(user_upload_folder, filename)
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    try:
+        # Get file info for response
+        file_stat = os.stat(file_path)
+        file_size_mb = file_stat.st_size / (1024 * 1024)
+        
+        # Try to extract date range from the file
+        date_range = None
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                # Read just the beginning to look for timestamp info
+                sample = f.read(10000)  # First 10KB
+                data_sample = json.loads(sample)
+                
+                # Look for timeline objects or locations
+                if isinstance(data_sample, dict):
+                    if 'timelineObjects' in data_sample:
+                        entries = data_sample['timelineObjects'][:5]  # First 5 entries
+                    elif 'locations' in data_sample:
+                        entries = data_sample['locations'][:5]
+                    else:
+                        entries = []
+                else:
+                    entries = data_sample[:5] if isinstance(data_sample, list) else []
+                
+                # Extract date range from sample entries
+                dates = []
+                for entry in entries:
+                    timestamp = None
+                    if 'startTime' in entry:
+                        timestamp = entry['startTime']
+                    elif 'timestampMs' in entry:
+                        timestamp = pd.to_datetime(int(entry['timestampMs']), unit='ms').isoformat()
+                    
+                    if timestamp:
+                        dates.append(pd.to_datetime(timestamp).date())
+                
+                if dates:
+                    date_range = {
+                        'start': min(dates).isoformat(),
+                        'end': max(dates).isoformat()
+                    }
+        
+        except Exception as e:
+            print(f"Could not extract date range: {e}")
+        
+        return jsonify({
+            'filename': filename,
+            'size_mb': round(file_size_mb, 2),
+            'modified': datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+            'date_range': date_range,
+            'ready_for_parsing': True
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error loading file: {str(e)}'}), 500
+
+@app.route('/analyze_existing_file/<filename>')
+@require_login
+def analyze_existing_file(filename):
+    """Load an existing parsed file for analysis"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    username = session['user']
+    
+    # Security check
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+    file_path = os.path.join(user_processed_folder, filename)
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    try:
+        # Generate a task ID for this analysis
+        task_id = str(uuid.uuid4())
+        
+        # Read and validate the parsed file
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Check if it's properly parsed
+        is_parsed = isinstance(data, dict) and '_metadata' in data
+        
+        if not is_parsed:
+            return jsonify({'error': 'File is not a properly parsed location file'}), 400
+        
+        # Extract metadata
+        metadata = data['_metadata']
+        date_range = metadata.get('dateRange', {})
+        stats = metadata.get('statistics', {})
+        
+        # Set up progress for analysis
+        user_progress = get_user_progress()
+        user_progress[task_id] = {
+            'step': 'ready_for_analysis',
+            'status': 'SUCCESS', 
+            'message': 'Parsed file loaded. Ready for analysis.',
+            'percentage': 100,
+            'parsed_file': file_path,
+            'parse_complete': True,
+            'analysis_complete': False,
+            'is_existing_file': True,
+            'parse_dates_used': date_range,
+            'parse_stats': stats
+        }
+        
+        return jsonify({
+            'task_id': task_id,
+            'message': 'File loaded successfully',
+            'step': 'ready_for_analysis',
+            'is_parsed': True,
+            'metadata': metadata,
+            'suggested_dates': {
+                'start_date': date_range.get('from', date_range.get('start', '')),
+                'end_date': date_range.get('to', date_range.get('end', ''))
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error loading file: {str(e)}'}), 500
+
+@app.route('/cleanup_old_masters', methods=['POST'])
+@require_login
+def cleanup_old_masters():
+    """Remove old master files, keeping only the most recent"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    username = session['user']
+    user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    
+    try:
+        if not os.path.exists(user_upload_folder):
+            return jsonify({'message': 'No master files found'})
+        
+        # Get all JSON files
+        json_files = [f for f in os.listdir(user_upload_folder) if f.endswith('.json')]
+        
+        if len(json_files) <= 1:
+            return jsonify({'message': 'Only one or no master files found'})
+        
+        # Sort by modification time, newest first
+        files_with_mtime = []
+        for filename in json_files:
+            file_path = os.path.join(user_upload_folder, filename)
+            mtime = os.path.getmtime(file_path)
+            files_with_mtime.append((filename, mtime))
+        
+        files_with_mtime.sort(key=lambda x: x[1], reverse=True)
+        
+        # Keep the newest, delete the rest
+        newest_file = files_with_mtime[0][0]
+        old_files = [f[0] for f in files_with_mtime[1:]]
+        
+        deleted_files = []
+        for filename in old_files:
+            file_path = os.path.join(user_upload_folder, filename)
+            os.remove(file_path)
+            deleted_files.append(filename)
+        
+        return jsonify({
+            'message': f'Cleaned up {len(deleted_files)} old master file(s)',
+            'kept_file': newest_file,
+            'deleted_files': deleted_files
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Cleanup failed: {str(e)}'}), 500
+
+
 @app.route('/')
 def index():
     if 'user' not in session:
@@ -1313,15 +1553,35 @@ def upload_raw():
     # Capture the username BEFORE starting the thread
     current_user = session['user']
     
+    # ADD DEBUG STATEMENTS HERE:
+    print(f"DEBUG: Upload process starting")
+    print(f"DEBUG: Username: {current_user}")
+    print(f"DEBUG: Original filename: {file.filename}")
+    print(f"DEBUG: Secure filename: {filename}")
+    print(f"DEBUG: Task ID: {task_id}")
+
     # Create user-specific folder
     user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], current_user)
+    print(f"DEBUG: User upload folder: {user_upload_folder}")
+    print(f"DEBUG: Folder exists before mkdir: {os.path.exists(user_upload_folder)}")
     os.makedirs(user_upload_folder, exist_ok=True)
-    
+    print(f"DEBUG: Folder exists after mkdir: {os.path.exists(user_upload_folder)}")
+
     # Save to user's folder
     upload_path = os.path.join(user_upload_folder, f"{task_id}_{filename}")
-    file.save(upload_path)
+    print(f"DEBUG: Full upload path: {upload_path}")
 
-    
+    try:
+        file.save(upload_path)
+        print(f"DEBUG: File saved successfully")
+        print(f"DEBUG: File exists after save: {os.path.exists(upload_path)}")
+        if os.path.exists(upload_path):
+            file_size = os.path.getsize(upload_path)
+            print(f"DEBUG: Saved file size: {file_size} bytes ({file_size/1024/1024:.1f} MB)")
+    except Exception as e:
+        print(f"DEBUG: Error saving file: {e}")
+        return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+
     # Get settings for parsing
     settings = {
         'from_date': request.form.get('parse_from_date'),
@@ -1411,7 +1671,8 @@ def upload_raw():
                     'parsed_file': output_file,
                     'parse_complete': True,
                     'parse_stats': result['stats'],
-                    'parse_dates_used': {'from': settings['from_date'], 'to': settings['to_date']}
+                    'parse_dates_used': {'from': settings['from_date'], 'to': settings['to_date']},
+                    'refresh_file_list': True  # Add this line
                 })
             else:
                 unified_progress[current_user][task_id].update({
@@ -1429,11 +1690,8 @@ def upload_raw():
                 'error': str(e)
             })
         
-        # Cleanup upload file
-        try:
-            os.remove(upload_path)
-        except:
-            pass
+        # removed cleanup files
+
     
     thread = threading.Thread(target=parse_in_background)
     thread.daemon = True
@@ -2151,7 +2409,6 @@ def create_html_views(output_dir, generated_files, task_id):
     
     <script>
         let sortDirection = {{}};
-        
         function filterTable() {{
             const input = document.getElementById('searchBox');
             const filter = input.value.toLowerCase();
