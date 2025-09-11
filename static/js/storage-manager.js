@@ -218,12 +218,18 @@ async function deleteSelectedFiles() {
 }
 
 function replaceMasterFile() {
-    const fileInput = document.getElementById('raw-file');
-    if (fileInput) {
-        fileInput.click();
-    } else {
-        alert('File upload not available');
-    }
+    // Close the modal first
+    closeDataManager();
+    
+    // Wait a moment for DOM to update, then trigger file input
+    setTimeout(() => {
+        const fileInput = document.getElementById('raw-file');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            alert('File upload not available - please use the main upload area');
+        }
+    }, 100);
 }
 
 async function cleanupOldMasters() {
@@ -283,16 +289,6 @@ async function parseFromMaster(filename) {
     } catch (error) {
         console.error('Error:', error);
         showNotification('Error loading master file', 'error');
-    }
-}
-
-function replaceMasterFile() {
-    // Trigger file upload
-    const fileInput = document.getElementById('raw-file');
-    if (fileInput) {
-        fileInput.click();
-    } else {
-        alert('File upload not available');
     }
 }
 
