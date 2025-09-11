@@ -636,6 +636,21 @@ body {
                         </div>
                     </div>
 
+                    <div class="form-row-3">
+                        <!-- ... existing threshold inputs ... -->
+                    </div>
+
+                    <!-- ADD THIS NEW SECTION HERE -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label style="display: flex; align-items: center; font-weight: normal; cursor: pointer;">
+                            <input type="checkbox" id="export_standard_format" name="export_standard_format" checked style="margin-right: 10px; transform: scale(1.2);">
+                            Also export standard Google location-history.json format
+                        </label>
+                        <small style="color: #666; margin-left: 25px; display: block; margin-top: 5px;">
+                            Creates a second file compatible with 3rd party location analysis tools
+                        </small>
+                    </div>
+
                     <div class="button-group">
                         <button type="submit" class="btn" id="parse-btn">Parse Location Data</button>
                     </div>

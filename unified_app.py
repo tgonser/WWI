@@ -391,6 +391,89 @@ class LocationProcessor:
         update_progress(self.task_id, message, percentage)
         self.log(f"PROGRESS: {message}")
     
+    def generate_standard_format(self, entries, settings):
+        """Generate standard Google location history format for 3rd party compatibility
+        
+        Key principles:
+        1. Keep ALL numeric values as strings (Google's original format)
+        2. Return direct array, not wrapped in object
+        3. Preserve exact field names and structure from Google exports
+        """
+        standard_entries = []
+        
+        for entry in entries:
+            try:
+                # Convert back to standard format
+                standard_entry = {}
+                
+                # Copy basic timing exactly as-is (already strings in proper format)
+                if 'startTime' in entry:
+                    standard_entry['startTime'] = entry['startTime']
+                if 'endTime' in entry:
+                    standard_entry['endTime'] = entry['endTime']
+                
+                # Handle activity entries
+                if 'activity' in entry:
+                    activity = entry['activity']
+                    standard_entry['activity'] = {
+                        'start': activity.get('start', ''),
+                        'end': activity.get('end', ''),
+                        # CRITICAL: Keep as string, don't convert to int
+                        'distanceMeters': str(activity.get('distanceMeters', '0')),
+                        'topCandidate': {
+                            'type': activity.get('topCandidate', {}).get('type', 'unknown'),
+                            # CRITICAL: Keep as string, don't convert to float
+                            'probability': str(activity.get('topCandidate', {}).get('probability', '0'))
+                        },
+                        # CRITICAL: Keep as string, don't convert to float
+                        'probability': str(activity.get('probability', '0'))
+                    }
+                
+                # Handle visit entries
+                elif 'visit' in entry:
+                    visit = entry['visit']
+                    standard_entry['visit'] = {
+                        'topCandidate': {
+                            'placeLocation': visit['topCandidate'].get('placeLocation', ''),
+                            'semanticType': visit['topCandidate'].get('semanticType', 'Unknown'),
+                            # CRITICAL: Keep as string, don't convert to float
+                            'probability': str(visit['topCandidate'].get('probability', '0'))
+                        },
+                        # CRITICAL: Keep as string, don't convert to float
+                        'probability': str(visit.get('probability', '0'))
+                    }
+                    
+                    # Add optional fields if present (preserve as-is)
+                    if 'placeID' in visit['topCandidate']:
+                        standard_entry['visit']['topCandidate']['placeID'] = visit['topCandidate']['placeID']
+                
+                # Handle timeline path entries
+                elif 'timelinePath' in entry:
+                    standard_entry['timelinePath'] = []
+                    for point in entry['timelinePath']:
+                        standard_point = {
+                            'point': point.get('point', ''),
+                            # CRITICAL: Keep as string
+                            'durationMinutesOffsetFromStartTime': str(point.get('durationMinutesOffsetFromStartTime', '0')),
+                            'mode': point.get('mode', 'unknown')
+                        }
+                        standard_entry['timelinePath'].append(standard_point)
+                
+                standard_entries.append(standard_entry)
+                
+            except Exception as e:
+                self.log(f"Warning: Could not convert entry to standard format: {e}", "WARN")
+                continue
+        
+        # OPTION 1: Return direct array (like one.json)
+        # This is what most 3rd party tools expect
+        return standard_entries
+        
+        # OPTION 2: Return wrapped format (like two.json structure)
+        # Uncomment this line and comment the return above if tools expect wrapper
+        # return {'timelineObjects': standard_entries}
+
+
     def parse_timestamp(self, timestamp_input):
         """Parse timestamp from any Google format."""
         if not timestamp_input:
@@ -657,8 +740,17 @@ class LocationProcessor:
         except:
             return None
     
+    # Add improved parser code 9_11
+    def get_point_timestamp(self, entry_start_time, duration_offset_minutes):
+        """Calculate the actual timestamp for a timeline point"""
+        start_dt = self.parse_timestamp(entry_start_time)
+        if not start_dt:
+            return None
+        offset_minutes = int(duration_offset_minutes) if duration_offset_minutes else 0
+        return start_dt + pd.Timedelta(minutes=offset_minutes)
+
     def process_timeline_path(self, entry: dict, settings: dict):
-        """Process timeline path entry with guaranteed first point and better local movement handling."""
+        """Process timeline path entry with correct timestamp filtering for each point."""
         try:
             timeline_path = entry.get('timelinePath', [])
             if not timeline_path:
@@ -666,25 +758,53 @@ class LocationProcessor:
             
             distance_threshold = settings.get('distance_threshold', 200)
             
-            # ALWAYS keep the first point - this solves the "missing start of day" issue
+            # Get date range for filtering individual points
+            from_dt = pd.to_datetime(settings['from_date'], utc=True)
+            to_dt = pd.to_datetime(settings['to_date'], utc=True) + pd.Timedelta(days=1)
+            
+            # STEP 1: Filter points by their actual timestamps first
+            date_filtered_points = []
+            
+            for point in timeline_path:
+                # Calculate when this specific point actually occurred
+                point_time = self.get_point_timestamp(
+                    entry['startTime'], 
+                    point.get('durationMinutesOffsetFromStartTime', '0')
+                )
+                
+                # Only include points that fall within the requested date range
+                if point_time and from_dt <= point_time < to_dt:
+                    coords = self.parse_coordinates(point.get('point'))
+                    if coords:
+                        date_filtered_points.append({
+                            'point': f"geo:{coords[0]:.6f},{coords[1]:.6f}",
+                            'durationMinutesOffsetFromStartTime': point.get('durationMinutesOffsetFromStartTime', '0'),
+                            'mode': point.get('mode', 'unknown'),
+                            'coords': coords,
+                            'actual_time': point_time
+                        })
+            
+            # If no points fall within the date range, return None
+            if not date_filtered_points:
+                return None
+            
+            # STEP 2: Apply distance filtering to the date-filtered points
             filtered_points = []
             
-            for i, point in enumerate(timeline_path):
-                coords = self.parse_coordinates(point.get('point'))
-                if not coords:
-                    continue
+            for i, point in enumerate(date_filtered_points):
+                coords = point['coords']
                 
-                # Always add the first valid point
+                # Always add the first point that's within the date range
                 if i == 0:
                     filtered_points.append({
-                        'point': f"geo:{coords[0]:.6f},{coords[1]:.6f}",
-                        'durationMinutesOffsetFromStartTime': point.get('durationMinutesOffsetFromStartTime', '0'),
-                        'mode': point.get('mode', 'unknown')
+                        'point': point['point'],
+                        'durationMinutesOffsetFromStartTime': point['durationMinutesOffsetFromStartTime'],
+                        'mode': point['mode']
                     })
                     continue
                 
                 # For subsequent points, apply distance filtering
-                if filtered_points:  # We have at least one point
+                if filtered_points:
                     last_point_coords = None
                     last_point_str = filtered_points[-1]['point']
                     if last_point_str.startswith('geo:'):
@@ -698,12 +818,12 @@ class LocationProcessor:
                             continue  # Skip points too close together
                 
                 filtered_points.append({
-                    'point': f"geo:{coords[0]:.6f},{coords[1]:.6f}",
-                    'durationMinutesOffsetFromStartTime': point.get('durationMinutesOffsetFromStartTime', '0'),
-                    'mode': point.get('mode', 'unknown')
+                    'point': point['point'],
+                    'durationMinutesOffsetFromStartTime': point['durationMinutesOffsetFromStartTime'],
+                    'mode': point['mode']
                 })
             
-            # If we only have 1 point (local movement), that's fine - return it
+            # If we only have 1 point, that's fine - return it
             if len(filtered_points) == 1:
                 self.stats['timeline_paths'] += 1
                 return {
@@ -712,16 +832,14 @@ class LocationProcessor:
                     'timelinePath': filtered_points
                 }
             
-            # Apply intelligent sampling based on movement type and settings
+            # STEP 3: Apply intelligent sampling based on movement type
             original_length = len(timeline_path)
             filtered_length = len(filtered_points)
             
             # Determine if this is local movement or travel
             if original_length <= 10 or filtered_length <= 5:
-                # Local movement - keep more granular data
                 max_points = min(8, filtered_length)
             else:
-                # Travel movement - sample more aggressively based on threshold
                 if distance_threshold >= 2000:
                     max_points = 5
                 elif distance_threshold >= 1000:
@@ -746,33 +864,7 @@ class LocationProcessor:
             
         except Exception as e:
             return None
-    
-    def process_legacy_location(self, entry: dict, settings: dict):
-        """Process legacy location entry."""
-        try:
-            coords = self.parse_coordinates(entry)
-            if not coords:
-                return None
-            
-            timestamp = self.parse_timestamp(entry.get('timestampMs'))
-            if not timestamp:
-                return None
-            
-            self.stats['visits'] += 1
-            return {
-                'startTime': timestamp.isoformat(),
-                'endTime': timestamp.isoformat(),
-                'visit': {
-                    'topCandidate': {
-                        'placeLocation': f"geo:{coords[0]:.6f},{coords[1]:.6f}",
-                        'probability': str(entry.get('accuracy', 50) / 100.0)
-                    },
-                    'probability': str(entry.get('accuracy', 50) / 100.0)
-                }
-            }
-        except:
-            return None
-
+        
     def process_file(self, input_file: str, settings: dict) -> dict:
         """Main processing function that applies BOTH date filtering AND thresholds."""
         try:
@@ -869,11 +961,19 @@ class LocationProcessor:
                 last_time = self.parse_timestamp(processed_entries[-1]['startTime'])
                 self.log(f"Output date range: {first_time.date()} to {last_time.date()}")
             
+            # Generate standard format if requested
+            standard_data = None
+            if settings.get('export_standard_format', False):
+                self.progress("Generating standard format for 3rd party compatibility...", 98)
+                standard_data = self.generate_standard_format(processed_entries, settings)
+                self.log(f"Generated standard format with {len(standard_data)} entries")
+
             return {
                 'success': True,
                 'data': processed_entries,
                 'stats': self.stats,
-                'reduction_percentage': round(reduction_ratio, 1)
+                'reduction_percentage': round(reduction_ratio, 1),
+                'standard_data': standard_data
             }
             
         except Exception as e:
@@ -1608,7 +1708,8 @@ def upload_raw():
         'to_date': request.form.get('parse_to_date'),
         'distance_threshold': float(request.form.get('distance_threshold', 200)),
         'probability_threshold': float(request.form.get('probability_threshold', 0.1)),
-        'duration_threshold': int(request.form.get('duration_threshold', 600))
+        'duration_threshold': int(request.form.get('duration_threshold', 600)),
+        'export_standard_format': request.form.get('export_standard_format') == 'on'  # Add this line
     }
     
     # Save settings to config
@@ -1681,7 +1782,17 @@ def upload_raw():
     
                 # Save with proper formatting
                 save_parsed_with_proper_formatting(output_file, metadata_enriched_data)
-                
+
+                # Save standard format if requested
+                standard_file = None
+                if settings.get('export_standard_format') and 'standard_data' in result:
+                    standard_filename = output_filename.replace('.json', '_standard.json')
+                    standard_file = os.path.join(user_processed_folder, standard_filename)
+                    
+                    # The standard_data is now a direct array, so save it as-is
+                    # This will create the format that 3rd party tools expect
+                    save_parsed_with_proper_formatting(standard_file, result['standard_data'])
+
                 # Update progress using captured username
                 unified_progress[current_user][task_id].update({
                     'step': 'parsed',
@@ -1689,10 +1800,11 @@ def upload_raw():
                     'message': f'Parsing complete! Processed {len(result["data"])} location entries.',
                     'percentage': 100,
                     'parsed_file': output_file,
+                    'standard_file': standard_file,  # Add this line
                     'parse_complete': True,
                     'parse_stats': result['stats'],
                     'parse_dates_used': {'from': settings['from_date'], 'to': settings['to_date']},
-                    'refresh_file_list': True  # Add this line
+                    'refresh_file_list': True
                 })
             else:
                 unified_progress[current_user][task_id].update({
@@ -2576,19 +2688,26 @@ def list_all_user_files():
                     'type': 'Master'
                 })
     
-    # Get parsed files from processed folder
+    # Get parsed files from processed folder with format indication
     if os.path.exists(user_processed_path):
         for filename in os.listdir(user_processed_path):
             if filename.endswith('.json'):
                 file_path = os.path.join(user_processed_path, filename)
                 file_stat = os.stat(file_path)
+                
+                # Determine file type
+                file_type = 'Parsed'
+                if '_standard.json' in filename:
+                    file_type = 'Standard Format'
+                elif filename.endswith('_parsed.json') or 'parsed_' in filename:
+                    file_type = 'Custom Format'
+                
                 all_files['parsed_files'].append({
                     'filename': filename,
                     'size_mb': round(file_stat.st_size / (1024*1024), 2),
                     'modified': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
-                    'type': 'Parsed'
+                    'type': file_type
                 })
-    
     return jsonify(all_files)
 
 @app.route('/progress/<task_id>')
@@ -2712,7 +2831,73 @@ def results(task_id):
                         'type': 'CSV Data' if filename.endswith('.csv') else 'HTML View',
                         'is_html': filename.endswith('.html')
                     })
-    # New filter code to parse data from file
+
+    # ADD THIS SECTION: Check for parsed JSON files in user's processed folder
+    username = session['user']
+    user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+    
+    # Look for custom and standard format files
+    parsed_file_info = None
+    standard_file_info = None
+    
+    if os.path.exists(user_processed_folder):
+        for filename in os.listdir(user_processed_folder):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_processed_folder, filename)
+                
+                # Check if this is a standard format file
+                if '_standard.json' in filename:
+                    standard_file_info = {'filename': filename}
+                else:
+                    # This is likely the custom format file
+                    # Verify it's actually parsed by checking for metadata
+                    try:
+                        with open(file_path, 'r') as f:
+                            data = json.load(f)
+                            if isinstance(data, dict) and '_metadata' in data:
+                                parsed_file_info = {'filename': filename}
+                    except:
+                        pass
+
+    # Add the parsed file info to progress_data so the template can access it
+    if parsed_file_info:
+        progress_data['parsed_file'] = parsed_file_info
+    if standard_file_info:
+        progress_data['standard_file'] = standard_file_info
+
+    # ADD THIS SECTION: Check for parsed JSON files in user's processed folder
+    username = session['user']
+    user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+    
+    # Look for custom and standard format files
+    parsed_file_info = None
+    standard_file_info = None
+    
+    if os.path.exists(user_processed_folder):
+        for filename in os.listdir(user_processed_folder):
+            if filename.endswith('.json'):
+                file_path = os.path.join(user_processed_folder, filename)
+                
+                # Check if this is a standard format file
+                if '_standard.json' in filename:
+                    standard_file_info = {'filename': filename}
+                else:
+                    # This is likely the custom format file
+                    # Verify it's actually parsed by checking for metadata
+                    try:
+                        with open(file_path, 'r') as f:
+                            data = json.load(f)
+                            if isinstance(data, dict) and '_metadata' in data:
+                                parsed_file_info = {'filename': filename}
+                    except:
+                        pass
+
+    # Add the parsed file info to progress_data so the template can access it
+    if parsed_file_info:
+        progress_data['parsed_file'] = parsed_file_info
+    if standard_file_info:
+        progress_data['standard_file'] = standard_file_info
+
     # Extract actual filter settings from parsed file metadata
     actual_filters = None
     date_range = None
@@ -2735,45 +2920,25 @@ def results(task_id):
                     date_range = metadata.get('dateRange', {})
         
         # Fallback: try to find any parsed file for this user
-        if not actual_filters:
-            user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], session['user'])
-            if os.path.exists(user_processed_folder):
-                # Get the most recent parsed file
-                json_files = [f for f in os.listdir(user_processed_folder) if f.endswith('.json')]
-                if json_files:
-                    json_files.sort(key=lambda x: os.path.getmtime(
-                        os.path.join(user_processed_folder, x)), reverse=True)
-                    recent_file = os.path.join(user_processed_folder, json_files[0])
-                    with open(recent_file, 'r') as f:
-                        parsed_data = json.load(f)
-                        if isinstance(parsed_data, dict) and '_metadata' in parsed_data:
-                            metadata = parsed_data['_metadata']
-                            actual_filters = metadata.get('filterSettings', {})
-                            date_range = metadata.get('dateRange', {})
+        if not actual_filters and parsed_file_info:
+            recent_file = os.path.join(user_processed_folder, parsed_file_info['filename'])
+            with open(recent_file, 'r') as f:
+                parsed_data = json.load(f)
+                if isinstance(parsed_data, dict) and '_metadata' in parsed_data:
+                    metadata = parsed_data['_metadata']
+                    actual_filters = metadata.get('filterSettings', {})
+                    date_range = metadata.get('dateRange', {})
     
     except Exception as e:
         print(f"Could not extract filter settings: {e}")
-        
-    # DEBUG: Let's see what we actually have
-    print(f"DEBUG: actual_filters = {actual_filters}")
-    print(f"DEBUG: date_range = {date_range}")
-    print(f"DEBUG: progress_data keys = {list(progress_data.keys())}")
-    if progress_data.get('parsed_data'):
-        print(f"DEBUG: parsed_data exists and type = {type(progress_data['parsed_data'])}")
-    if progress_data.get('parsed_file'):
-        print(f"DEBUG: parsed_file = {progress_data['parsed_file']}")
     
     return render_template('results.html',
                          task_id=task_id,
                          progress_data=progress_data,
                          files_info=files_info,
                          actual_filters=actual_filters,
-                         date_range=date_range)
-
-    return render_template('results.html',
-                         task_id=task_id,
-                         progress_data=progress_data,
-                         files_info=files_info)
+                         date_range=date_range,
+                         username=session['user'])
 
 @app.route('/processing/<task_id>')
 @require_login

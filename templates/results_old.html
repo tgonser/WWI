@@ -76,79 +76,6 @@
             font-size: 1.1em;
         }
 
-        .parsed-files-section {
-            background: #e3f2fd;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            border: 1px solid #2196F3;
-        }
-
-        .parsed-files-section h2 {
-            margin-bottom: 20px;
-            color: #1976d2;
-            font-size: 1.5em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .parsed-files-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .parsed-file-card {
-            background: white;
-            border: 1px solid #2196F3;
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .parsed-file-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.2);
-        }
-
-        .parsed-file-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .parsed-file-icon {
-            width: 40px;
-            height: 40px;
-            background: #2196F3;
-            color: white;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2em;
-            margin-right: 15px;
-        }
-
-        .parsed-file-name {
-            font-weight: bold;
-            color: #1976d2;
-            flex-grow: 1;
-        }
-
-        .parsed-file-description {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
-
-        .parsed-file-actions {
-            display: flex;
-            gap: 10px;
-        }
-
         .files-section {
             background: #f8f9fa;
             border-radius: 15px;
@@ -336,10 +263,6 @@
                 grid-template-columns: 1fr;
             }
             
-            .parsed-files-grid {
-                grid-template-columns: 1fr;
-            }
-            
             .actions-section {
                 flex-direction: column;
                 align-items: center;
@@ -371,7 +294,7 @@
         </div>
         
         <div class="content">
-            <!-- Summary Statistics -->
+            <!-- Summary Statistics - BUG FIX #3: Show real stats instead of 0s -->
             {% if progress_data.analysis_stats %}
             <div class="summary-stats">
                 <div class="stat-card">
@@ -412,54 +335,6 @@
             </div>
             {% endif %}
 
-            <!-- NEW SECTION: Parsed JSON Files -->
-            {% if progress_data.parsed_file or progress_data.standard_file %}
-            <div class="parsed-files-section">
-                <h2>📄 Parsed Location Data</h2>
-                <p style="margin-bottom: 20px; color: #666;">Your Google Takeout data has been converted into structured JSON format</p>
-                
-                <div class="parsed-files-grid">
-                    {% if progress_data.parsed_file %}
-                    <div class="parsed-file-card">
-                        <div class="parsed-file-header">
-                            <div class="parsed-file-icon">
-                                🔧
-                            </div>
-                            <div class="parsed-file-name">Custom Format</div>
-                        </div>
-                        <div class="parsed-file-description">
-                            Enhanced JSON with metadata and processing information. Optimized for this application and advanced analysis.
-                        </div>
-                        <div class="parsed-file-actions">
-                            <a href="/download/processed/{{ session['user'] }}/{{ progress_data.parsed_file.filename }}" class="btn">
-                            Download Custom JSON
-                        </a>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if progress_data.standard_file %}
-                    <div class="parsed-file-card">
-                        <div class="parsed-file-header">
-                            <div class="parsed-file-icon">
-                                🌐
-                            </div>
-                            <div class="parsed-file-name">Standard Format</div>
-                        </div>
-                        <div class="parsed-file-description">
-                            Clean JSON in Google's standard format. Compatible with third-party tools and analysis software.
-                        </div>
-                        <div class="parsed-file-actions">
-                            <a href="/download/processed/{{ session['user'] }}/{{ progress_data.standard_file.filename }}" class="btn">
-                                Download Standard JSON
-                            </a>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
             <!-- Download All Section -->
             <div class="download-all">
                 <h3 style="color: #2e7d32; margin-bottom: 15px;">Complete Results Package</h3>
@@ -469,7 +344,7 @@
                 </a>
             </div>
 
-            <!-- Generated Files -->
+            <!-- Generated Files - BUG FIX #4: Show only 3 cards, not 6 -->
             <div class="files-section">
                 <h2>Generated Files</h2>
                 
@@ -482,6 +357,7 @@
                             <div class="file-icon html">
                                 🌐
                             </div>
+                            <!-- BUG FIX #4: Clean up header names -->
                             <div class="file-name">
                                 {% if 'by_city_location_days' in file.name %}
                                     Days by City
