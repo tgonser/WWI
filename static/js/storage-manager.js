@@ -32,14 +32,7 @@ async function loadServerFiles() {
         displayAllUserFiles(data);
         console.log('displayAllUserFiles completed');
 
-        // ADD THE DEBUG CODE HERE:
-        setTimeout(() => {
-            const listDiv = document.getElementById('originalFilesList');
-            console.log('DOM content after 1 second:', listDiv.innerHTML);
-            console.log('Visible buttons:', document.querySelectorAll('#originalFilesList button'));
-            console.log('Checkboxes found:', document.querySelectorAll('.parsed-file-checkbox'));
-        }, 1000);
-        
+       
     } catch (error) {
         console.error('Error in loadServerFiles:', error);
         document.getElementById('originalFilesList').innerHTML = 
@@ -177,6 +170,11 @@ async function analyzeSelectedFile() {
     }
     
     const filename = checkboxes[0].value;
+    
+    // Close the modal FIRST
+    closeDataManager();
+    
+    // Then analyze the file
     await analyzeExistingFile(filename);
 }
 
@@ -253,20 +251,37 @@ async function cleanupOldMasters() {
 
 async function parseFromMaster(filename) {
     try {
-        // Trigger the parse workflow by loading the master file
-        // This should integrate with your existing upload workflow
+        // Use the existing endpoint
+        const response = await fetch(`/load_master_for_parsing/${encodeURIComponent(filename)}`);
+        const result = await response.json();
         
-        closeDataManager();
-        
-        // Move to parsing step - this depends on your existing UI functions
-        if (typeof moveToStep === 'function') {
-            moveToStep(1); // Move to parse step
+        if (result.error) {
+            alert(`Error: ${result.error}`);
+            return;
         }
         
-        showNotification(`Master file ready for parsing: ${filename}`);
+        // Close modal
+        closeDataManager();
+        
+        // Update UI to show file is loaded
+        const fileInfo = document.getElementById('file-info');
+        if (fileInfo) {
+            fileInfo.textContent = `Master loaded: ${filename} (${result.size_mb} MB)`;
+            fileInfo.style.color = '#28a745';
+        }
+        
+        // Store that we have a master ready
+        window.reparsingMaster = filename;
+        
+        // Move to parse step
+        if (typeof moveToStep === 'function') {
+            moveToStep(1);
+        }
+        
+        showNotification('Master file loaded. Set your date range and thresholds, then click Parse.', 'success');
         
     } catch (error) {
-        console.error('Error loading master for parsing:', error);
+        console.error('Error:', error);
         showNotification('Error loading master file', 'error');
     }
 }

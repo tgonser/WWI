@@ -1539,48 +1539,68 @@ def upload_raw():
     if 'user' not in session:
         return redirect('/login')
     
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    if file.filename == '' or not file.filename.lower().endswith('.json'):
-        return jsonify({'error': 'Please upload a JSON file'}), 400
-    
-    # Save file
-    filename = secure_filename(file.filename)
-    task_id = str(uuid.uuid4())
-    
     # Capture the username BEFORE starting the thread
     current_user = session['user']
+    task_id = str(uuid.uuid4())
+
+    # Check if reparsing an existing master
+    reparse_master = request.form.get('reparse_master')
+
+    if reparse_master:
+        # Use existing master file
+        user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], current_user)
+        upload_path = os.path.join(user_upload_folder, reparse_master)
+        
+        if not os.path.exists(upload_path):
+            return jsonify({'error': f'Master file not found: {reparse_master}'}), 404
+        
+        filename = reparse_master
+        print(f"DEBUG: Reparsing existing master file: {filename}")
+        print(f"DEBUG: Path: {upload_path}")
+
+    else:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
     
-    # ADD DEBUG STATEMENTS HERE:
-    print(f"DEBUG: Upload process starting")
-    print(f"DEBUG: Username: {current_user}")
-    print(f"DEBUG: Original filename: {file.filename}")
-    print(f"DEBUG: Secure filename: {filename}")
-    print(f"DEBUG: Task ID: {task_id}")
+        file = request.files['file']
+        if file.filename == '' or not file.filename.lower().endswith('.json'):
+            return jsonify({'error': 'Please upload a JSON file'}), 400
+    
+        # Save file
+        filename = secure_filename(file.filename)
+        task_id = str(uuid.uuid4())
+    
+        # Capture the username BEFORE starting the thread
+        current_user = session['user']
+        
+        # ADD DEBUG STATEMENTS HERE:
+        print(f"DEBUG: Upload process starting")
+        print(f"DEBUG: Username: {current_user}")
+        print(f"DEBUG: Original filename: {file.filename}")
+        print(f"DEBUG: Secure filename: {filename}")
+        print(f"DEBUG: Task ID: {task_id}")
 
-    # Create user-specific folder
-    user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], current_user)
-    print(f"DEBUG: User upload folder: {user_upload_folder}")
-    print(f"DEBUG: Folder exists before mkdir: {os.path.exists(user_upload_folder)}")
-    os.makedirs(user_upload_folder, exist_ok=True)
-    print(f"DEBUG: Folder exists after mkdir: {os.path.exists(user_upload_folder)}")
+        # Create user-specific folder
+        user_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], current_user)
+        print(f"DEBUG: User upload folder: {user_upload_folder}")
+        print(f"DEBUG: Folder exists before mkdir: {os.path.exists(user_upload_folder)}")
+        os.makedirs(user_upload_folder, exist_ok=True)
+        print(f"DEBUG: Folder exists after mkdir: {os.path.exists(user_upload_folder)}")
 
-    # Save to user's folder
-    upload_path = os.path.join(user_upload_folder, f"{task_id}_{filename}")
-    print(f"DEBUG: Full upload path: {upload_path}")
+        # Save to user's folder
+        upload_path = os.path.join(user_upload_folder, f"{task_id}_{filename}")
+        print(f"DEBUG: Full upload path: {upload_path}")
 
-    try:
-        file.save(upload_path)
-        print(f"DEBUG: File saved successfully")
-        print(f"DEBUG: File exists after save: {os.path.exists(upload_path)}")
-        if os.path.exists(upload_path):
-            file_size = os.path.getsize(upload_path)
-            print(f"DEBUG: Saved file size: {file_size} bytes ({file_size/1024/1024:.1f} MB)")
-    except Exception as e:
-        print(f"DEBUG: Error saving file: {e}")
-        return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+        try:
+            file.save(upload_path)
+            print(f"DEBUG: File saved successfully")
+            print(f"DEBUG: File exists after save: {os.path.exists(upload_path)}")
+            if os.path.exists(upload_path):
+                file_size = os.path.getsize(upload_path)
+                print(f"DEBUG: Saved file size: {file_size} bytes ({file_size/1024/1024:.1f} MB)")
+        except Exception as e:
+            print(f"DEBUG: Error saving file: {e}")
+            return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
 
     # Get settings for parsing
     settings = {
@@ -2347,6 +2367,7 @@ def create_html_views(output_dir, generated_files, task_id):
     </style>
 </head>
 <body>
+<!-- VERSION: FIXED_DUPLICATE_VARS_DEC09 -->
     <div class="container">
         <div class="header">
             <h1>{title}</h1>

@@ -602,7 +602,7 @@ body {
                         <div class="file-upload-area" onclick="document.getElementById('raw-file').click()">
                             <div class="upload-icon">📁</div>
                             <p>Click to select or drag and drop your location-history.json file</p>
-                            <input type="file" id="raw-file" name="file" accept=".json" style="display: none;" required>
+                            <input type="file" id="raw-file" name="file" accept=".json" style="display: none;">
                         </div>
                         <div id="file-info" style="margin-top: 10px; font-size: 0.9em; color: #666;"></div>
                     </div>
@@ -779,6 +779,13 @@ body {
 <script src="{{ url_for('static', filename='js/storage-integration.js') }}"></script>
 
 <script>
+
+// File upload handling
+document.getElementById('raw-file').addEventListener('change', function(e) {
+    console.log('File change event');
+    // ... rest of code
+});
+    
 function safeShowAllSavedData() {
     if (typeof window.showAllSavedData === 'function') {
         window.showAllSavedData();
@@ -788,20 +795,8 @@ function safeShowAllSavedData() {
     }
 }
 
-// Add error catching
-window.addEventListener('error', function(e) {
-    console.log('Error caught:', e.message);
-    console.log('File:', e.filename);
-    console.log('Line:', e.lineno);
-    console.log('Column:', e.colno);
-    console.log('Stack:', e.error ? e.error.stack : 'No stack');
-});
-console.log('=== SCRIPT SECTION COMPLETE ==='); 
-</script>
 
 
-
-<script>
 window.currentTaskId = null;
 let currentStep = 1;
 let uploadMode = 'raw';
@@ -874,7 +869,6 @@ async function analyzeExistingFile(filename) {
             moveToStep(2);
         }
         
-        alert(`Loaded ${filename} for analysis`);
         
     } catch (error) {
         console.error('Error loading file for analysis:', error);
@@ -957,25 +951,38 @@ function toggleUploadMode() {
 document.getElementById('parse-form').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    console.log('JavaScript event handler is running!');
-
     const formData = new FormData(this);
     const parseBtn = document.getElementById('parse-btn');
     const progressContainer = document.getElementById('parse-progress');
     
+    // Check if we're reparsing an existing master
+    if (window.reparsingMaster) {
+        // Add master filename to form data
+        formData.append('reparse_master', window.reparsingMaster);
+    } else if (!document.getElementById('raw-file').files.length) {
+        console.log('No file selected and no master loaded');
+        showStatus('Please select a file to parse', 'error');
+        return;
+    }
+
     parseBtn.disabled = true;
     progressContainer.classList.add('active');
     
     showStatus('Starting location data parsing...', 'info');
     
+    
     fetch('/upload_raw', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+            return response.json();
+    })
     .then(data => {
-        if (data.task_id) {
+                if (data.task_id) {
             window.currentTaskId = data.task_id;
+            // Clear the reparse flag after successful submission
+            window.reparsingMaster = null;
             pollProgress('parse');
         } else {
             showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
@@ -983,8 +990,10 @@ document.getElementById('parse-form').addEventListener('submit', function(e) {
         }
     })
     .catch(error => {
+        console.error('Fetch error:', error);
         showStatus('Error: ' + error.message, 'error');
         parseBtn.disabled = false;
+        window.reparsingMaster = null;
     });
 });
 
