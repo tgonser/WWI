@@ -16,6 +16,10 @@ import hashlib
 import secrets
 
 # Import the existing modules - these need to be copied from your LAweb app
+
+#import map viewer 
+from location_map_viewer import LocationMapViewer, launch_map_viewer_from_task
+
 try:
     from modern_analyzer_bridge import process_location_file  # Use modern analyzer
     from geo_utils import geo_cache, save_geo_cache, load_cache
@@ -3102,7 +3106,6 @@ def health_check():
         ]
     })
 
-
 @app.route('/download/processed/<username>/<filename>')
 @require_login
 def download_processed_file(username, filename):
@@ -3121,6 +3124,185 @@ def download_processed_file(username, filename):
     except Exception as e:
         return jsonify({'error': f'Download failed: {str(e)}'}), 500
 
+@app.route('/view_map/<task_id>')
+@require_login
+def view_map(task_id):
+    """Launch map viewer for a completed analysis task"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    username = session['user']
+    
+    # Check if task exists and is complete
+    if username not in unified_progress or task_id not in unified_progress[username]:
+        flash('Task not found', 'error')
+        return redirect(url_for('index'))
+    
+    progress_data = unified_progress[username][task_id]
+    
+    if not progress_data.get('parse_complete'):
+        flash('No parsed data available for mapping', 'error')
+        return redirect(url_for('index'))
+    
+    # Find the data source - FIX: Handle the dictionary structure correctly
+    data_file = None
+    
+    if 'parsed_data' in progress_data:
+        # Data is in memory - create temporary file
+        import tempfile
+        import json
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, 
+                                               dir=os.path.join(app.config['PROCESSED_FOLDER'], username))
+        json.dump(progress_data['parsed_data'], temp_file, indent=2)
+        temp_file.close()
+        data_file = temp_file.name
+    elif progress_data.get('parsed_file'):
+        # FIX: Check if parsed_file is a dictionary or string
+        parsed_file_info = progress_data.get('parsed_file')
+        if isinstance(parsed_file_info, dict):
+            # It's a dictionary with filename, need to construct full path
+            filename = parsed_file_info.get('filename')
+            if filename:
+                user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+                data_file = os.path.join(user_processed_folder, filename)
+        elif isinstance(parsed_file_info, str):
+            # It's already a file path
+            data_file = parsed_file_info
+
+    # ADD THESE DEBUG LINES RIGHT HERE:
+    print(f"DEBUG: Map viewer file detection:")
+    print(f"  progress_data keys: {list(progress_data.keys())}")
+    print(f"  parsed_file value: {progress_data.get('parsed_file')}")
+    print(f"  final data_file: {data_file}")
+    print(f"  file exists: {os.path.exists(data_file) if data_file else 'No file'}")
+    
+    # Also try looking for recent parsed files if no specific file found
+    if not data_file or not os.path.exists(data_file):
+        user_processed_folder = os.path.join(app.config['PROCESSED_FOLDER'], username)
+        if os.path.exists(user_processed_folder):
+            # Find the most recent parsed file
+            json_files = [f for f in os.listdir(user_processed_folder) if f.endswith('.json') and not f.endswith('_standard.json')]
+            if json_files:
+                # Sort by modification time, newest first
+                json_files.sort(key=lambda x: os.path.getmtime(os.path.join(user_processed_folder, x)), reverse=True)
+                data_file = os.path.join(user_processed_folder, json_files[0])
+    
+    if not data_file or not os.path.exists(data_file):
+        flash('Parsed data file not found', 'error')
+        return redirect(url_for('index'))
+    
+    # Store data file path in session for the map viewer
+    session['map_data_file'] = data_file
+    session['map_task_id'] = task_id
+    
+    return render_template('map_launcher.html', task_id=task_id, data_file=os.path.basename(data_file))
+
+@app.route('/launch_map')
+@require_login
+def launch_map():
+    """Launch the map viewer in a new window/tab"""
+    if 'map_data_file' not in session:
+        return jsonify({'error': 'No map data available'}), 400
+    
+    data_file = session['map_data_file']
+    
+    if not os.path.exists(data_file):
+        return jsonify({'error': 'Data file not found'}), 404
+    
+    # Return the map HTML directly
+    try:
+        viewer = LocationMapViewer()
+        if viewer.load_data(data_file):
+            map_obj = viewer.create_map()
+            if map_obj:
+                # Create a full HTML page with the map
+                map_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Location Map - {session.get('map_task_id', 'Unknown')[:8]}</title>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body {{ margin: 0; padding: 0; }}
+                        #map {{ height: 100vh; width: 100vw; }}
+                        .info-panel {{
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            background: white;
+                            padding: 15px;
+                            border-radius: 5px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                            z-index: 1000;
+                            max-width: 300px;
+                        }}
+                        .close-btn {{
+                            float: right;
+                            background: none;
+                            border: none;
+                            font-size: 20px;
+                            cursor: pointer;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="info-panel">
+                        <button class="close-btn" onclick="this.parentElement.style.display='none'">&times;</button>
+                        <h3>Location Map</h3>
+                        <p><strong>Task:</strong> {session.get('map_task_id', 'Unknown')[:8]}</p>
+                        <p><strong>Points:</strong> {len(viewer.extract_coordinates())}</p>
+                        <p><strong>Date Range:</strong> {viewer.map_data.get('metadata', {}).get('dateRange', {}).get('from', 'Unknown')} to {viewer.map_data.get('metadata', {}).get('dateRange', {}).get('to', 'Unknown')}</p>
+                        <hr>
+                        <small>
+                            <span style="color: red;">●</span> Visits<br>
+                            <span style="color: green;">●</span> Activity Start<br>
+                            <span style="color: blue;">●</span> Activity End<br>
+                            <span style="color: orange;">●</span> Timeline Points
+                        </small>
+                    </div>
+                    {map_obj._repr_html_()}
+                </body>
+                </html>
+                """
+                return map_html
+            else:
+                return '<h1>No valid coordinates found in the data</h1>'
+        else:
+            return '<h1>Failed to load location data</h1>'
+    except Exception as e:
+        return f'<h1>Error generating map: {str(e)}</h1>'
+
+@app.route('/map_data_info')
+@require_login  
+def map_data_info():
+    """Get information about available map data"""
+    if 'map_data_file' not in session:
+        return jsonify({'error': 'No map data available'})
+    
+    data_file = session['map_data_file']
+    
+    try:
+        viewer = LocationMapViewer()
+        if viewer.load_data(data_file):
+            points = viewer.extract_coordinates()
+            
+            # Count different point types
+            point_types = {}
+            for point in points:
+                point_type = point['type']
+                point_types[point_type] = point_types.get(point_type, 0) + 1
+            
+            return jsonify({
+                'total_points': len(points),
+                'point_types': point_types,
+                'data_loaded': True,
+                'metadata': viewer.map_data.get('metadata', {})
+            })
+        else:
+            return jsonify({'error': 'Failed to load data'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
     #FOR RAILWAY 

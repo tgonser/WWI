@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Launch Location Map</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #757575, #616161);
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        #mapInfo {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Location Data Map Viewer</h1>
+        
+        <div class="info">
+            <h3>Ready to View Your Location Data</h3>
+            <p><strong>Task ID:</strong> {{ task_id[:8] }}...</p>
+            <p><strong>Data File:</strong> {{ data_file }}</p>
+        </div>
+        
+        <div id="mapInfo">
+            <p>Loading map data information...</p>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <a href="#" onclick="openMap()" class="btn">View Interactive Map</a>
+            <a href="{{ url_for('results', task_id=task_id) }}" class="btn btn-secondary">Back to Results</a>
+        </div>
+        
+        <div style="margin-top: 20px; color: #666; font-size: 14px;">
+            <p><strong>Map Features:</strong></p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>Interactive markers for visits, activities, and timeline points</li>
+                <li>Color-coded markers by type</li>
+                <li>Detailed popups with location information</li>
+                <li>Multiple map tile layers</li>
+                <li>Zoom and pan controls</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Load map data info when page loads
+        fetch('/map_data_info')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('mapInfo').innerHTML = 
+                    '<p style="color: red;">Error: ' + data.error + '</p>';
+            } else {
+                let html = '<h4>Map Data Summary</h4>';
+                html += '<p><strong>Total Points:</strong> ' + data.total_points + '</p>';
+                
+                if (data.point_types) {
+                    html += '<p><strong>Point Types:</strong></p><ul>';
+                    for (let type in data.point_types) {
+                        html += '<li>' + type.replace('_', ' ') + ': ' + data.point_types[type] + '</li>';
+                    }
+                    html += '</ul>';
+                }
+                
+                if (data.metadata && data.metadata.dateRange) {
+                    html += '<p><strong>Date Range:</strong> ' + 
+                           (data.metadata.dateRange.from || 'Unknown') + ' to ' + 
+                           (data.metadata.dateRange.to || 'Unknown') + '</p>';
+                }
+                
+                document.getElementById('mapInfo').innerHTML = html;
+            }
+        })
+        .catch(error => {
+            document.getElementById('mapInfo').innerHTML = 
+                '<p style="color: red;">Failed to load map info</p>';
+        });
+        
+        function openMap() {
+            // Open map in new window/tab
+            window.open('/launch_map', '_blank', 'width=1200,height=800');
+        }
+    </script>
+</body>
+</html>

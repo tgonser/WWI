@@ -516,8 +516,10 @@
             </div>
 
             <!-- Actions -->
+           <!-- Actions -->
             <div class="actions-section">
                 <a href="/" class="btn btn-success">Process New File</a>
+                <a href="{{ url_for('view_map', task_id=task_id) }}" class="btn">View Interactive Map</a>
                 <button onclick="showProcessingLog()" class="btn">View Processing Log</button>
             </div>
         </div>
